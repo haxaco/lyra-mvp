@@ -1,0 +1,7 @@
+name: Vercel Ignore
+on: [push]
+jobs:
+  ignore:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Vercel will build on push to default branch'
