@@ -19,7 +19,7 @@ export async function GET() {
     // Create Supabase client with service role key (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Test query to organizations table
+    // Try to query organizations table (if it exists)
     const { data, error } = await supabase
       .from('organizations')
       .select('id')
@@ -38,7 +38,6 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       supabase: 'reachable',
-      sample: data,
     });
   } catch (error) {
     return NextResponse.json(
