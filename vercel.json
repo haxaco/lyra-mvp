@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm turbo run build --filter=web",
+  "buildCommand": "pnpm turbo run build --filter=@lyra/web",
   "framework": "nextjs",
   "installCommand": "pnpm install --no-frozen-lockfile",
   "outputDirectory": "apps/web/.next"
