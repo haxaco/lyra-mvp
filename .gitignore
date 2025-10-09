@@ -1,0 +1,46 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Output
+.next/
+out/
+dist/
+build/
+.cache/
+.vercel/
+
+# Turbo & Logs
+.turbo/
+.vscode/
+*.log
+.DS_Store
+
+# TypeScript
+*.tsbuildinfo
+
+# Supabase local setup (if using supabase cli)
+supabase/.temp/
+supabase/migrations/.shadow/
+supabase/.branches/
+.supabase
+
+# IDEs
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# OS / Misc
+Thumbs.db

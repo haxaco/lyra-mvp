@@ -1,0 +1,26 @@
+{
+  "name": "@lyra/web",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "@supabase/supabase-js": "2.45.3",
+    "clsx": "2.1.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.4.19",
+    "postcss": "8.4.41",
+    "tailwindcss": "3.4.10",
+    "eslint": "9.9.0",
+    "@types/node": "20.12.12",
+    "@types/react": "18.2.66",
+    "typescript": "5.5.4"
+  }
+}
