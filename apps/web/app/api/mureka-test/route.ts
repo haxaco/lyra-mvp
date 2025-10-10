@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { r2Put, r2PublicUrl, r2SignGet } from "@/lib/r2";
+import { r2Put, r2SignGet } from "@/lib/r2";
 
 const API_BASE = "https://api.mureka.ai";
 
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
           const contentType = resp.headers.get("content-type") || (ext === "flac" ? "audio/flac" : "audio/mpeg");
           const key = `test/mureka_${taskId}_${safeIndex}.${ext}`;
           await r2Put(key, buf, contentType);
-          const url = r2PublicUrl(key) ?? await r2SignGet(key, 3600);
+          const url = await r2SignGet(key, 3600);
           console.log(`[mureka] uploaded ${ext} → ${key}`);
           return { key, url };
         }
