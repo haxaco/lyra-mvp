@@ -4,22 +4,33 @@ import { r2SignGet } from "@/lib/r2";
 
 export async function GET() {
   try {
+    // TODO: Replace with proper user authentication and org-based authorization
+    const testOrgId = process.env.TEST_ORG_ID;
+    if (!testOrgId) {
+      return NextResponse.json(
+        { ok: false, error: "TEST_ORG_ID not configured" },
+        { status: 500 }
+      );
+    }
+
     const supabase = supabaseAdmin();
     
     // First, try a simple count to see if RLS is blocking
     const { count, error: countError } = await supabase
       .from("tracks")
-      .select("*", { count: 'exact', head: true });
+      .select("*", { count: 'exact', head: true })
+      .eq('organization_id', testOrgId);
     
     if (countError) {
       console.error("[tracks/list] count error:", countError);
     } else {
-      console.log(`[tracks/list] total count in DB: ${count}`);
+      console.log(`[tracks/list] total count in DB for org ${testOrgId}: ${count}`);
     }
     
     const { data, error } = await supabase
       .from("tracks")
       .select("id, organization_id, r2_key, flac_r2_key, duration_seconds, created_at, meta, title")
+      .eq('organization_id', testOrgId)
       .order("created_at", { ascending: false })
       .limit(50);
 
