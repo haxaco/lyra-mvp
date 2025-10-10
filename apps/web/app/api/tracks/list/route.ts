@@ -20,20 +20,37 @@ export async function GET() {
 
     const items = await Promise.all(
       (data ?? []).map(async (row) => {
-        const mp3Url = row.r2_key ? await r2SignGet(row.r2_key, 3600) : null;
-        const flacUrl = row.flac_r2_key ? await r2SignGet(row.flac_r2_key, 3600) : null;
-        return {
-          id: row.id,
-          organization_id: row.organization_id,
-          duration_seconds: row.duration_seconds,
-          created_at: row.created_at,
-          title: row.title,
-          meta: row.meta,
-          mp3: row.r2_key ? { key: row.r2_key, url: mp3Url } : null,
-          flac: row.flac_r2_key ? { key: row.flac_r2_key, url: flacUrl } : null,
-        };
+        try {
+          const mp3Url = row.r2_key ? await r2SignGet(row.r2_key, 3600) : null;
+          const flacUrl = row.flac_r2_key ? await r2SignGet(row.flac_r2_key, 3600) : null;
+          return {
+            id: row.id,
+            organization_id: row.organization_id,
+            duration_seconds: row.duration_seconds,
+            created_at: row.created_at,
+            title: row.title,
+            meta: row.meta,
+            mp3: row.r2_key ? { key: row.r2_key, url: mp3Url } : null,
+            flac: row.flac_r2_key ? { key: row.flac_r2_key, url: flacUrl } : null,
+          };
+        } catch (err) {
+          console.error(`[tracks/list] error processing track ${row.id}:`, err);
+          // Return the track anyway with null URLs
+          return {
+            id: row.id,
+            organization_id: row.organization_id,
+            duration_seconds: row.duration_seconds,
+            created_at: row.created_at,
+            title: row.title,
+            meta: row.meta,
+            mp3: null,
+            flac: null,
+          };
+        }
       })
     );
+
+    console.log(`[tracks/list] returning ${items.length} items`);
 
     return NextResponse.json({ ok: true, items });
   } catch (e: any) {
