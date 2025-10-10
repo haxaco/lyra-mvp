@@ -16,6 +16,7 @@ type DbItem = {
   id: string;
   duration_seconds: number | null;
   created_at: string;
+  title: string | null;
   meta: any;
   mp3: Asset | null;
   flac: Asset | null;
@@ -269,7 +270,9 @@ export default function MurekaTestPage() {
           {dbItems.map((it) => (
             <div key={it.id} className="rounded-lg border border-white/15 p-4 bg-black/30">
               <div className="flex items-center justify-between mb-2">
-                <div className="text-sm opacity-80">Track {it.id.slice(0,8)}…</div>
+                <div className="text-sm opacity-80">
+                  {it.title || `Track ${it.id.slice(0,8)}…`}
+                </div>
                 <div className="text-xs opacity-60">{new Date(it.created_at).toLocaleString()}</div>
               </div>
               {it.mp3?.url ? <audio controls className="w-full" src={it.mp3.url} /> : <div className="text-xs opacity-70">No MP3</div>}

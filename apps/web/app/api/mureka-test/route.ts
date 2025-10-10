@@ -165,6 +165,14 @@ export async function POST(req: NextRequest) {
 
         // Persist to DB (service role)
         const durationSec = choice.duration ? Math.round(choice.duration / 1000) : null;
+        
+        // Generate title from prompt or filename
+        let title = mp3?.key?.split('/').pop()?.replace('.mp3', '') ?? `mureka_${taskId}_${safeIndex}`;
+        if (genBody.prompt && genBody.prompt.trim().length > 0) {
+          // Use first 50 chars of prompt as title
+          title = genBody.prompt.trim().slice(0, 50);
+        }
+        
         const meta = {
           provider: "mureka",
           task_id: taskId,
@@ -187,7 +195,7 @@ export async function POST(req: NextRequest) {
             r2_key: mp3?.key ?? null,
             flac_r2_key: flac?.key ?? null,
             duration_seconds: durationSec,
-            title: null,
+            title,
             genre: null,
             energy: null,
             sample_rate: null,
@@ -195,7 +203,7 @@ export async function POST(req: NextRequest) {
             watermark: false,
             meta,
           }])
-          .select("id, r2_key, flac_r2_key, duration_seconds, created_at")
+          .select("id, r2_key, flac_r2_key, duration_seconds, created_at, title")
           .single();
 
         if (insertRes.error) {
