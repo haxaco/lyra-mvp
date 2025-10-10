@@ -41,7 +41,7 @@ export default function MurekaTestPage() {
   const [elapsed, setElapsed] = useState<number>(0);
   const [error, setError] = useState<string>("");
 
-  const timerRef = useRef<NodeJS.Timer | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Persist common fields locally
   useEffect(() => {
