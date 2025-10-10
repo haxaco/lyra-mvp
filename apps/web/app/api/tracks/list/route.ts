@@ -5,6 +5,18 @@ import { r2SignGet } from "@/lib/r2";
 export async function GET() {
   try {
     const supabase = supabaseAdmin();
+    
+    // First, try a simple count to see if RLS is blocking
+    const { count, error: countError } = await supabase
+      .from("tracks")
+      .select("*", { count: 'exact', head: true });
+    
+    if (countError) {
+      console.error("[tracks/list] count error:", countError);
+    } else {
+      console.log(`[tracks/list] total count in DB: ${count}`);
+    }
+    
     const { data, error } = await supabase
       .from("tracks")
       .select("id, organization_id, r2_key, flac_r2_key, duration_seconds, created_at, meta, title")
@@ -16,7 +28,7 @@ export async function GET() {
       throw error;
     }
 
-    console.log(`[tracks/list] found ${data?.length ?? 0} tracks`);
+    console.log(`[tracks/list] query returned ${data?.length ?? 0} tracks (expected ${count})`);
     if (data && data.length > 0) {
       console.log(`[tracks/list] first track:`, {
         id: data[0].id,
