@@ -17,6 +17,20 @@ export async function GET() {
     }
 
     console.log(`[tracks/list] found ${data?.length ?? 0} tracks`);
+    if (data && data.length > 0) {
+      console.log(`[tracks/list] first track:`, {
+        id: data[0].id,
+        title: data[0].title,
+        created_at: data[0].created_at,
+        has_r2_key: !!data[0].r2_key,
+      });
+      console.log(`[tracks/list] last track:`, {
+        id: data[data.length - 1].id,
+        title: data[data.length - 1].title,
+        created_at: data[data.length - 1].created_at,
+        has_r2_key: !!data[data.length - 1].r2_key,
+      });
+    }
 
     const items = await Promise.all(
       (data ?? []).map(async (row) => {

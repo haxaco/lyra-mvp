@@ -211,6 +211,8 @@ export async function POST(req: NextRequest) {
           throw new Error(insertRes.error.message);
         }
 
+        console.log(`[mureka] inserted track ${insertRes.data.id} with title: ${title}`);
+
         return {
           db: insertRes.data,
           r2Mp3: mp3,
