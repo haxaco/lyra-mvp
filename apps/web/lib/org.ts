@@ -1,17 +1,31 @@
+import { headers } from "next/headers";
+import { supabaseFromAuthHeader } from "@/lib/supabaseFromAuthHeader";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export async function getSessionOrgId(): Promise<string | null> {
-  const supa = supabaseServer();
+export async function getOrgClientAndId() {
+  const h = headers();
+  const auth = h.get("authorization");
+  const supa = auth?.startsWith("Bearer ")
+    ? supabaseFromAuthHeader(auth)
+    : supabaseServer();
+
   const { data: { user } } = await supa.auth.getUser();
-  if (!user?.id) return null;
-  const admin = supabaseAdmin();
-  const { data, error } = await admin
+  const userId = user?.id || null;
+  if (!userId) return { supa, orgId: null, userId: null };
+
+  const { data: mem, error } = await supa
     .from("user_memberships")
     .select("organization_id")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .limit(1);
-  if (error || !data?.[0]?.organization_id) return null;
-  return data[0].organization_id as string;
+
+  const orgId = error ? null : mem?.[0]?.organization_id || null;
+  return { supa, orgId, userId };
+}
+
+// Legacy helper - kept for backward compatibility
+export async function getSessionOrgId(): Promise<string | null> {
+  const { orgId } = await getOrgClientAndId();
+  return orgId;
 }
 
