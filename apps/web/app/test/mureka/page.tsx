@@ -95,13 +95,18 @@ export default function MurekaTestPage() {
           setOrganizationId(userOrgId);
         }
       }
-      
-      // Refresh tracks after we have the org ID
-      setTimeout(() => refreshFromDb(), 100);
     }
     
     getUserAndOrg();
   }, [supabase]);
+  
+  // Auto-refresh tracks when organizationId becomes available
+  useEffect(() => {
+    if (organizationId) {
+      console.log(`[mureka] organizationId set to ${organizationId}, refreshing tracks`);
+      refreshFromDb();
+    }
+  }, [organizationId]);
   useEffect(() => { localStorage.setItem("mureka_org", organizationId); }, [organizationId]);
   useEffect(() => { localStorage.setItem("mureka_model", model); }, [model]);
   useEffect(() => { localStorage.setItem("mureka_n", String(n)); }, [n]);
