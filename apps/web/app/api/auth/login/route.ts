@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  console.log('[auth/login] endpoint hit');
   try {
     const { email, password } = await req.json();
+    console.log(`[auth/login] attempting login for ${email}`);
 
     if (!email || !password) {
       return NextResponse.json({ ok: false, error: "Missing email or password" }, { status: 400 });
