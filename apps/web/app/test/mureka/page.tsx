@@ -96,7 +96,11 @@ export default function MurekaTestPage() {
   }, [loading]);
 
   async function refreshFromDb() {
-    const res = await fetch("/api/tracks/list");
+    const orgIdToUse = organizationId || process.env.NEXT_PUBLIC_TEST_ORG_ID;
+    const url = orgIdToUse 
+      ? `/api/tracks/list?organizationId=${encodeURIComponent(orgIdToUse)}`
+      : '/api/tracks/list';
+    const res = await fetch(url);
     const json = await res.json();
     if (json.ok) setDbItems(json.items || []);
   }
