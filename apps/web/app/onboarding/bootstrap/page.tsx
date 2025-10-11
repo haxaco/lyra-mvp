@@ -24,61 +24,26 @@ export default function BootstrapPage() {
         }
 
         setStatus('Setting up your organization...');
-        console.log(`[bootstrap] user ${user.id} (${user.email}) checking org/membership`);
+        console.log(`[bootstrap] user ${user.id} (${user.email})`);
 
-        // Check if user already has an organization membership
-        const { data: memberships, error: membershipError } = await supabase
-          .from('user_memberships')
-          .select('organization_id')
-          .eq('user_id', user.id)
-          .limit(1);
+        // Call server-side bootstrap API to create org/membership with service role
+        const response = await fetch('/api/bootstrap', {
+          method: 'POST',
+        });
 
-        if (membershipError) {
-          console.error('[bootstrap] error checking memberships:', membershipError);
+        const result = await response.json();
+
+        if (!result.ok) {
+          console.error('[bootstrap] error:', result.error);
+          setStatus(`Error: ${result.error}`);
+          setTimeout(() => router.push('/login'), 2000);
+          return;
         }
 
-        if (!memberships || memberships.length === 0) {
-          setStatus('Creating your organization...');
-          console.log(`[bootstrap] creating new org for user ${user.id}`);
-          
-          const orgName = user.email?.split('@')[0] || 'My Organization';
-          
-          const { data: org, error: orgError } = await supabase
-            .from('organizations')
-            .insert([{
-              name: orgName,
-              created_by: user.id,
-            }])
-            .select('id')
-            .single();
-
-          if (orgError) {
-            console.error('[bootstrap] error creating org:', orgError);
-            setStatus('Error creating organization. Proceeding anyway...');
-            // Proceed anyway - maybe RLS blocks it but they have an org
-            await new Promise(r => setTimeout(r, 1000));
-          } else if (org) {
-            console.log(`[bootstrap] created org ${org.id}`);
-            
-            // Create membership
-            const { error: membershipInsertError } = await supabase
-              .from('user_memberships')
-              .insert([{
-                user_id: user.id,
-                organization_id: org.id,
-                role: 'owner',
-              }]);
-
-            if (membershipInsertError) {
-              console.error('[bootstrap] error creating membership:', membershipInsertError);
-              setStatus('Error creating membership. Proceeding anyway...');
-              await new Promise(r => setTimeout(r, 1000));
-            } else {
-              console.log(`[bootstrap] created membership for user ${user.id} in org ${org.id}`);
-            }
-          }
+        if (result.created) {
+          console.log(`[bootstrap] created new org ${result.organizationId}`);
         } else {
-          console.log(`[bootstrap] user ${user.id} already has membership in org ${memberships[0].organization_id}`);
+          console.log(`[bootstrap] user already has org ${result.organizationId}`);
         }
 
         // Redirect to destination

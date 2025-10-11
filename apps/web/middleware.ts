@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/auth/callback",
   "/onboarding/bootstrap",
+  "/api/bootstrap",
   "/api/mureka-test",
   "/api/tracks/list",
   "/api/r2/test",
