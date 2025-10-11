@@ -20,9 +20,7 @@ export async function middleware(req: NextRequest) {
   if (isPublic) return NextResponse.next();
 
   let response = NextResponse.next({
-    request: {
-      headers: req.headers,
-    },
+    request: req,
   });
 
   const supabase = createServerClient(
@@ -34,6 +32,11 @@ export async function middleware(req: NextRequest) {
           return req.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: any) {
+          req.cookies.set({
+            name,
+            value,
+            ...options,
+          });
           response.cookies.set({
             name,
             value,
@@ -41,6 +44,11 @@ export async function middleware(req: NextRequest) {
           });
         },
         remove(name: string, options: any) {
+          req.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
           response.cookies.set({
             name,
             value: '',
@@ -51,15 +59,17 @@ export async function middleware(req: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error } = await supabase.auth.getUser();
   
-  if (!user) {
+  if (error || !user) {
+    console.log(`[middleware] no user for ${pathname}, error:`, error?.message);
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
+  console.log(`[middleware] user ${user.id} accessing ${pathname}`);
   return response;
 }
 
