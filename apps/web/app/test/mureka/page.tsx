@@ -1,5 +1,7 @@
 "use client";
 
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Asset = { key: string; url: string };
@@ -35,6 +37,10 @@ const DEFAULTS = {
 };
 
 export default function MurekaTestPage() {
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+  
+  const [user, setUser] = useState<any>(null);
   const [organizationId, setOrganizationId] = useState<string>("");
   const [model, setModel] = useState<string>(DEFAULTS.model);
   const [n, setN] = useState<number>(DEFAULTS.n);
@@ -53,6 +59,15 @@ export default function MurekaTestPage() {
   const [error, setError] = useState<string>("");
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Get user on mount
+  useEffect(() => {
+    async function getUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    }
+    getUser();
+  }, [supabase]);
 
   useEffect(() => {
     const ls = (k: string, def: any) => { const v = localStorage.getItem(k); return v ?? def; };
@@ -105,6 +120,11 @@ export default function MurekaTestPage() {
     if (json.ok) setDbItems(json.items || []);
   }
 
+  async function signOut() {
+    await supabase.auth.signOut();
+    router.push('/login');
+  }
+
   async function run(e?: React.FormEvent) {
     e?.preventDefault();
     setError("");
@@ -151,7 +171,23 @@ export default function MurekaTestPage() {
 
   return (
     <div className="min-h-[90vh] flex flex-col items-center gap-6 p-6">
-      <h1 className="text-2xl font-semibold">Mureka → R2 → DB Test</h1>
+      {/* Header with user info */}
+      <div className="w-full max-w-3xl flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Mureka → R2 → DB Test</h1>
+        <div className="flex items-center gap-3">
+          {user && (
+            <>
+              <span className="text-sm opacity-70">{user.email}</span>
+              <button
+                onClick={signOut}
+                className="px-3 py-1.5 text-sm rounded border border-white/20 hover:bg-white/10"
+              >
+                Sign out
+              </button>
+            </>
+          )}
+        </div>
+      </div>
 
       <form onSubmit={run} className="w-full max-w-3xl grid gap-4 rounded-lg border border-white/15 p-4 bg-black/30">
         <label className="grid gap-1">
