@@ -1,7 +1,6 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST() {
   try {
@@ -20,11 +19,9 @@ export async function POST() {
 
     console.log(`[bootstrap] user ${user.id} (${user.email}) checking org/membership`);
 
-    // Use admin client to bypass RLS
-    const admin = supabaseAdmin();
-
+    // Use authenticated session - RLS policies will control access
     // Check if user already has an organization membership
-    const { data: memberships, error: membershipError } = await admin
+    const { data: memberships, error: membershipError } = await supabase
       .from('user_memberships')
       .select('organization_id')
       .eq('user_id', user.id)
@@ -43,8 +40,8 @@ export async function POST() {
       
       const orgName = user.email?.split('@')[0] || 'My Organization';
       
-      // Create organization using admin client
-      const { data: org, error: orgError } = await admin
+      // Create organization - RLS policy allows users to create orgs they own
+      const { data: org, error: orgError } = await supabase
         .from('organizations')
         .insert([{
           name: orgName,
@@ -63,8 +60,8 @@ export async function POST() {
 
       console.log(`[bootstrap] created org ${org.id}`);
       
-      // Create membership using admin client
-      const { error: membershipInsertError } = await admin
+      // Create membership - RLS policy allows users to create their own memberships
+      const { error: membershipInsertError } = await supabase
         .from('user_memberships')
         .insert([{
           user_id: user.id,
