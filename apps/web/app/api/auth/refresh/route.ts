@@ -1,37 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     const { refresh_token } = await req.json();
+
     if (!refresh_token) {
-      return NextResponse.json({ ok:false, error:"Missing refresh_token" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Missing refresh_token" }, { status: 400 });
     }
 
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`;
-    const res = await fetch(url, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
       method: "POST",
       headers: {
-        "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ refresh_token }),
     });
 
-    const json = await res.json();
+    const data = await res.json();
+
     if (!res.ok) {
-      return NextResponse.json({ ok:false, error: json.error_description || json.error || "Refresh failed" }, { status: res.status });
+      return NextResponse.json({ ok: false, error: data.error_description || data.error || "Refresh failed" }, { status: res.status });
     }
 
     return NextResponse.json({
       ok: true,
-      access_token: json.access_token,
-      refresh_token: json.refresh_token,  // may be returned depending on GoTrue config
-      expires_in: json.expires_in,
-      token_type: json.token_type,
-      user: json.user ? { id: json.user.id, email: json.user.email } : null,
+      user: data.user ? { id: data.user.id, email: data.user.email } : null,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in,
+      token_type: data.token_type,
     });
-  } catch (e:any) {
-    return NextResponse.json({ ok:false, error: e.message || String(e) }, { status: 500 });
+  } catch (err: any) {
+    console.error("Refresh error:", err);
+    return NextResponse.json({ ok: false, error: err.message || "Internal error" }, { status: 500 });
   }
 }
 
