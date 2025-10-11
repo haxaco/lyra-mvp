@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -31,7 +31,7 @@ export async function middleware(req: NextRequest) {
         get(name: string) {
           return req.cookies.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: CookieOptions) {
           req.cookies.set({
             name,
             value,
@@ -43,7 +43,7 @@ export async function middleware(req: NextRequest) {
             ...options,
           });
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           req.cookies.set({
             name,
             value: '',
@@ -59,17 +59,18 @@ export async function middleware(req: NextRequest) {
     }
   );
 
-  const { data: { user }, error } = await supabase.auth.getUser();
+  // Try to get session first, then user
+  const { data: { session } } = await supabase.auth.getSession();
   
-  if (error || !user) {
-    console.log(`[middleware] no user for ${pathname}, error:`, error?.message);
+  if (!session) {
+    console.log(`[middleware] no session for ${pathname}`);
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
-  console.log(`[middleware] user ${user.id} accessing ${pathname}`);
+  console.log(`[middleware] user ${session.user.id} accessing ${pathname}`);
   return response;
 }
 
