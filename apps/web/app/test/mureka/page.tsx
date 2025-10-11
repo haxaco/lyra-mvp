@@ -62,18 +62,11 @@ export default function MurekaTestPage() {
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Get user on mount
-  useEffect(() => {
-    async function getUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    }
-    getUser();
-  }, [supabase]);
-
+  // Load from localStorage first, then get user and auto-fill org if needed
   useEffect(() => {
     const ls = (k: string, def: any) => { const v = localStorage.getItem(k); return v ?? def; };
-    setOrganizationId(ls("mureka_org", ""));
+    const savedOrgId = ls("mureka_org", "");
+    setOrganizationId(savedOrgId);
     setModel(ls("mureka_model", DEFAULTS.model));
     setN(Number(ls("mureka_n", String(DEFAULTS.n))));
     setPrompt(ls("mureka_prompt", DEFAULTS.prompt));
@@ -82,8 +75,33 @@ export default function MurekaTestPage() {
     setVocalId(ls("mureka_vocal_id", DEFAULTS.vocal_id));
     setMelodyId(ls("mureka_melody_id", DEFAULTS.melody_id));
     setStream(ls("mureka_stream", String(DEFAULTS.stream)) === "true");
-    refreshFromDb();
-  }, []);
+    
+    // After loading from localStorage, fetch user and their org
+    async function getUserAndOrg() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      
+      if (user && !savedOrgId) {
+        // Only auto-fill if localStorage doesn't have an org ID
+        const { data: memberships } = await supabase
+          .from('user_memberships')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .limit(1);
+        
+        if (memberships && memberships.length > 0) {
+          const userOrgId = memberships[0].organization_id;
+          console.log(`[mureka] auto-filling user org: ${userOrgId}`);
+          setOrganizationId(userOrgId);
+        }
+      }
+      
+      // Refresh tracks after we have the org ID
+      setTimeout(() => refreshFromDb(), 100);
+    }
+    
+    getUserAndOrg();
+  }, [supabase]);
   useEffect(() => { localStorage.setItem("mureka_org", organizationId); }, [organizationId]);
   useEffect(() => { localStorage.setItem("mureka_model", model); }, [model]);
   useEffect(() => { localStorage.setItem("mureka_n", String(n)); }, [n]);
@@ -114,12 +132,20 @@ export default function MurekaTestPage() {
 
   async function refreshFromDb() {
     const orgIdToUse = organizationId || process.env.NEXT_PUBLIC_TEST_ORG_ID;
-    const url = orgIdToUse 
-      ? `/api/tracks/list?organizationId=${encodeURIComponent(orgIdToUse)}`
-      : '/api/tracks/list';
+    if (!orgIdToUse) {
+      console.error('[mureka] no organization ID available for tracks/list');
+      setError('No organization ID set. Please enter one in the form or set TEST_ORG_ID env var.');
+      return;
+    }
+    const url = `/api/tracks/list?organizationId=${encodeURIComponent(orgIdToUse)}`;
     const res = await fetch(url);
     const json = await res.json();
-    if (json.ok) setDbItems(json.items || []);
+    if (json.ok) {
+      setDbItems(json.items || []);
+    } else {
+      console.error('[mureka] error fetching tracks:', json.error);
+      setError(json.error || 'Failed to fetch tracks');
+    }
   }
 
   async function signOut() {
