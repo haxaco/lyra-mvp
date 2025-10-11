@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -19,47 +19,11 @@ export async function middleware(req: NextRequest) {
   const isPublic = PUBLIC_PATHS.some(p => pathname.startsWith(p));
   if (isPublic) return NextResponse.next();
 
-  let response = NextResponse.next({
-    request: req,
-  });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          req.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          req.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-        },
-      },
-    }
-  );
-
-  // Try to get session first, then user
+  const res = NextResponse.next();
+  
+  // Use the same auth-helpers-nextjs library as API routes for consistency
+  const supabase = createMiddlewareClient({ req, res });
+  
   const { data: { session } } = await supabase.auth.getSession();
   
   if (!session) {
@@ -71,7 +35,7 @@ export async function middleware(req: NextRequest) {
   }
 
   console.log(`[middleware] user ${session.user.id} accessing ${pathname}`);
-  return response;
+  return res;
 }
 
 export const config = {
