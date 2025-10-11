@@ -6,7 +6,6 @@ import type { NextRequest } from 'next/server';
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next') || '/test/mureka';
 
   if (code) {
     const cookieStore = cookies();
@@ -19,7 +18,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect to bootstrap to ensure org/membership exists
-    return NextResponse.redirect(`${requestUrl.origin}/onboarding/bootstrap?next=${encodeURIComponent(next)}`);
+    // Bootstrap will read the next URL from a cookie or default to /test/mureka
+    return NextResponse.redirect(`${requestUrl.origin}/onboarding/bootstrap`);
   }
 
   // No code, redirect to login

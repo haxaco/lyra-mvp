@@ -4,6 +4,8 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from "react";
 
+export const dynamic = 'force-dynamic';
+
 type Asset = { key: string; url: string };
 type GeneratedItem = {
   index: number;
