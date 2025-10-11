@@ -6,16 +6,16 @@ const PUBLIC_PATHS = [
   "/login",
   "/auth/callback",
   "/onboarding/bootstrap",
-  "/api/bootstrap",
-  "/api/mureka-test",
-  "/api/tracks/list",
-  "/api/r2/test",
-  "/api/healthz",
-  "/api/sign",
 ];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  
+  // Allow all API routes through - they handle their own auth via getSessionOrgId()
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+  
   const isPublic = PUBLIC_PATHS.some(p => pathname.startsWith(p));
   if (isPublic) return NextResponse.next();
 
