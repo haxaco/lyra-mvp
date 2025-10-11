@@ -4,6 +4,8 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 
+export const dynamic = 'force-dynamic';
+
 function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,7 +19,13 @@ function LoginForm() {
       setError('');
       
       const next = searchParams.get('next') || '/test/mureka';
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+      
+      // Store the next URL in localStorage so we can retrieve it after OAuth redirect
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('auth_redirect_next', next);
+      }
+      
+      const redirectTo = `${window.location.origin}/auth/callback`;
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
