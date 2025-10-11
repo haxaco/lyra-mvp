@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
-import { getSessionOrgId } from "@/lib/org";
+import { getOrgClientAndId } from "@/lib/org";
 
 export async function GET() {
   try {
-    const orgId = await getSessionOrgId();
+    const { supa, orgId } = await getOrgClientAndId();
     if (!orgId) return NextResponse.json({ ok:false, error:"No org in session" }, { status: 401 });
 
-    const supa = supabaseServer();
     const { data: org, error: oErr } = await supa
       .from("organizations")
       .select("id, name, created_at")

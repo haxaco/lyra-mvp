@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSessionOrgId } from "@/lib/org";
+import { getOrgClientAndId } from "@/lib/org";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { supabaseServer } from "@/lib/supabaseServer";
 import { r2Put, r2SignGet } from "@/lib/r2";
 
 const API_BASE = "https://api.mureka.ai";
@@ -27,12 +26,8 @@ export async function POST(req: NextRequest) {
   const t0 = Date.now();
   let jobId: string | null = null;
   try {
-    const orgId = await getSessionOrgId();
+    const { supa, orgId, userId } = await getOrgClientAndId();
     if (!orgId) return NextResponse.json({ ok:false, error:"No org in session" }, { status: 401 });
-
-    const supaSrv = supabaseServer();
-    const { data: { user } } = await supaSrv.auth.getUser();
-    const userId = user?.id ?? null;
 
     const token = process.env.MUREKA_API_KEY;
     if (!token) return NextResponse.json({ ok:false, error:"Missing MUREKA_API_KEY" }, { status: 500 });
