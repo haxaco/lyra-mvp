@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
-import { getSessionOrgId } from "@/lib/org";
+import { supabaseFromAuthHeader } from "@/lib/supabaseFromAuthHeader";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const orgId = await getSessionOrgId();
-    if (!orgId) return NextResponse.json({ ok:false, error:"No org in session" }, { status: 401 });
+    const authHeader = req.headers.get("authorization");
+    let supa;
 
-    const supa = supabaseServer();
-    // RLS will scope results by org
+    if (authHeader?.startsWith("Bearer ")) {
+      // Token mode: act as the user in the token
+      supa = supabaseFromAuthHeader(authHeader);
+    } else {
+      // Cookie mode: act as the user from Supabase cookies
+      supa = supabaseServer();
+    }
+
     const { data, error } = await supa
       .from("tracks")
       .select("id, title, duration_seconds, r2_key, created_at, meta")
