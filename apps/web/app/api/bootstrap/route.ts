@@ -1,10 +1,11 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST() {
   try {
-    // Get authenticated user from their session
+    // Get authenticated user from their session cookie
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -19,9 +20,12 @@ export async function POST() {
 
     console.log(`[bootstrap] user ${user.id} (${user.email}) checking org/membership`);
 
-    // Use authenticated session - RLS policies will control access
+    // Use service role for bootstrap operations (bypasses RLS for initial setup)
+    // This is appropriate because we're creating the user's FIRST org before they have any memberships
+    const admin = supabaseAdmin();
+    
     // Check if user already has an organization membership
-    const { data: memberships, error: membershipError } = await supabase
+    const { data: memberships, error: membershipError } = await admin
       .from('user_memberships')
       .select('organization_id')
       .eq('user_id', user.id)
@@ -40,8 +44,8 @@ export async function POST() {
       
       const orgName = user.email?.split('@')[0] || 'My Organization';
       
-      // Create organization - RLS policy allows users to create orgs they own
-      const { data: org, error: orgError } = await supabase
+      // Create organization using service role (bypasses RLS for initial setup)
+      const { data: org, error: orgError } = await admin
         .from('organizations')
         .insert([{
           name: orgName,
@@ -60,8 +64,8 @@ export async function POST() {
 
       console.log(`[bootstrap] created org ${org.id}`);
       
-      // Create membership - RLS policy allows users to create their own memberships
-      const { error: membershipInsertError } = await supabase
+      // Create membership using service role (bypasses RLS for initial setup)
+      const { error: membershipInsertError } = await admin
         .from('user_memberships')
         .insert([{
           user_id: user.id,
