@@ -2,14 +2,16 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { r2SignGet } from "@/lib/r2";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     // TODO: Replace with proper user authentication and org-based authorization
-    const testOrgId = process.env.TEST_ORG_ID;
-    if (!testOrgId) {
+    const { searchParams } = new URL(request.url);
+    const orgId = searchParams.get('organizationId') || process.env.TEST_ORG_ID;
+    
+    if (!orgId) {
       return NextResponse.json(
-        { ok: false, error: "TEST_ORG_ID not configured" },
-        { status: 500 }
+        { ok: false, error: "organizationId query parameter or TEST_ORG_ID env var required" },
+        { status: 400 }
       );
     }
 
@@ -19,18 +21,18 @@ export async function GET() {
     const { count, error: countError } = await supabase
       .from("tracks")
       .select("*", { count: 'exact', head: true })
-      .eq('organization_id', testOrgId);
+      .eq('organization_id', orgId);
     
     if (countError) {
       console.error("[tracks/list] count error:", countError);
     } else {
-      console.log(`[tracks/list] total count in DB for org ${testOrgId}: ${count}`);
+      console.log(`[tracks/list] total count in DB for org ${orgId}: ${count}`);
     }
     
     const { data, error } = await supabase
       .from("tracks")
       .select("id, organization_id, r2_key, flac_r2_key, duration_seconds, created_at, meta, title")
-      .eq('organization_id', testOrgId)
+      .eq('organization_id', orgId)
       .order("created_at", { ascending: false })
       .limit(50);
 
