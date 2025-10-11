@@ -29,38 +29,13 @@ FOR INSERT
 TO authenticated
 WITH CHECK (auth.uid() = user_id);
 
--- Policy: Users can read memberships in organizations they belong to
-CREATE POLICY "Users can read memberships in their organizations"
+-- Policy: Users can read their own memberships
+CREATE POLICY "Users can read their own memberships"
 ON user_memberships
 FOR SELECT
 TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM user_memberships um
-    WHERE um.organization_id = user_memberships.organization_id
-    AND um.user_id = auth.uid()
-  )
-);
+USING (user_id = auth.uid());
 
--- Policy: Organization owners can add/update members
-CREATE POLICY "Organization owners can manage memberships"
-ON user_memberships
-FOR ALL
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM user_memberships
-    WHERE user_id = auth.uid()
-    AND organization_id = user_memberships.organization_id
-    AND role = 'owner'
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM user_memberships
-    WHERE user_id = auth.uid()
-    AND organization_id = user_memberships.organization_id
-    AND role = 'owner'
-  )
-);
+-- Note: More complex policies for managing other users' memberships
+-- can be added later. For now, users can only manage their own memberships.
 
