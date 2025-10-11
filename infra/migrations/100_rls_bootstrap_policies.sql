@@ -1,3 +1,11 @@
+-- Drop and recreate policies to fix infinite recursion issue
+DROP POLICY IF EXISTS "Users can read memberships in their organizations" ON user_memberships;
+DROP POLICY IF EXISTS "Organization owners can manage memberships" ON user_memberships;
+DROP POLICY IF EXISTS "Users can create their own organizations" ON organizations;
+DROP POLICY IF EXISTS "Users can read their organizations" ON organizations;
+DROP POLICY IF EXISTS "Users can create their own memberships" ON user_memberships;
+DROP POLICY IF EXISTS "Users can read their own memberships" ON user_memberships;
+
 -- Enable RLS on tables if not already enabled
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_memberships ENABLE ROW LEVEL SECURITY;
@@ -29,7 +37,7 @@ FOR INSERT
 TO authenticated
 WITH CHECK (auth.uid() = user_id);
 
--- Policy: Users can read their own memberships
+-- Policy: Users can read their own memberships (simple, no recursion)
 CREATE POLICY "Users can read their own memberships"
 ON user_memberships
 FOR SELECT
