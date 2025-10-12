@@ -2,11 +2,11 @@
 "use client";
 
 import * as React from "react";
-import { Music, Plus, Search, Grid, List, Play, MoreVertical } from "lucide-react@0.487.0";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
-import { Badge } from "../../components/ui/badge";
+import { Music, Plus, Search, Grid, List, Play, MoreVertical } from "lucide-react";
+import { Button } from "@lyra/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lyra/ui";
+import { Input } from "@lyra/ui";
+import { Badge } from "@lyra/ui";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
   DropdownMenu,
@@ -14,8 +14,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu";
-import { cn } from "../../components/ui/utils";
+} from "@lyra/ui";
+import { cn } from "@lyra/ui";
 
 export interface Playlist {
   id: string;

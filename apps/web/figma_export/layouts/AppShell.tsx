@@ -2,11 +2,11 @@
 "use client";
 
 import * as React from "react";
-import { Menu, Search, X } from "lucide-react@0.487.0";
-import { cn } from "../../components/ui/utils";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
+import { Menu, Search, X } from "lucide-react";
+import { cn } from "@lyra/ui";
+import { Button } from "@lyra/ui";
+import { Input } from "@lyra/ui";
+import { Avatar, AvatarFallback, AvatarImage } from "@lyra/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +14,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu";
+} from "@lyra/ui";
 
 export type NavItem = {
   id: string;

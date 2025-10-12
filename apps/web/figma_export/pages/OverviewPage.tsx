@@ -13,11 +13,11 @@ import {
   DollarSign,
   Play,
   Plus,
-} from "lucide-react@0.487.0";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
-import { cn } from "../../components/ui/utils";
+} from "lucide-react";
+import { Button } from "@lyra/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lyra/ui";
+import { Badge } from "@lyra/ui";
+import { cn } from "@lyra/ui";
 
 export interface StatCardData {
   title: string;

@@ -12,18 +12,18 @@ import {
   Share2,
   Download,
   Clock,
-} from "lucide-react@0.487.0";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
+} from "lucide-react";
+import { Button } from "@lyra/ui";
+import { Card, CardContent } from "@lyra/ui";
+import { Badge } from "@lyra/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu";
-import { cn } from "../../components/ui/utils";
+} from "@lyra/ui";
+import { cn } from "@lyra/ui";
 
 export interface Track {
   id: string;

@@ -2,25 +2,25 @@
 "use client";
 
 import * as React from "react";
-import { Music, Search, Filter, Play, Heart, MoreVertical } from "lucide-react@0.487.0";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
-import { Badge } from "../../components/ui/badge";
+import { Music, Search, Filter, Play, Heart, MoreVertical } from "lucide-react";
+import { Button } from "@lyra/ui";
+import { Card, CardContent } from "@lyra/ui";
+import { Input } from "@lyra/ui";
+import { Badge } from "@lyra/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
+} from "@lyra/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu";
-import { cn } from "../../components/ui/utils";
+} from "@lyra/ui";
+import { cn } from "@lyra/ui";
 
 export interface Song {
   id: string;
