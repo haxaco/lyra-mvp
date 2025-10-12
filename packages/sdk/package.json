@@ -1,0 +1,25 @@
+{
+  "name": "@lyra/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --sourcemap --external react --external react-dom --external @tanstack/react-query",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external react --external react-dom --external @tanstack/react-query",
+    "lint": "eslint ."
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.51.1",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "5.5.4"
+  }
+}
+
