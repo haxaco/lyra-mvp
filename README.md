@@ -14,8 +14,12 @@ pnpm -w dev
 - `apps/worker` — background worker scaffold
 
 ## Packages
-- `packages/core` — shared types/contracts (e.g., provider interfaces)
-- `packages/ui` — shared UI components (placeholder)
+- `packages/core` — shared types/contracts (e.g., R2 signing, provider interfaces)
+- `packages/ui` — design system package with primitives, layout components, and theming
+  - Built from Figma Make exports (`apps/web/figma_export/`)
+  - Includes: UIButton, UICard, UIInput, TopNavBar, Sidebar, MusicPlayer, ThemeProvider
+  - CSS design tokens and Tailwind integration
+  - See `packages/ui/README.md` for details
 
 ## Infra
 - `infra/migrations` — SQL schema (Supabase/Postgres + RLS examples)
@@ -190,3 +194,78 @@ curl -X POST "$BASE/api/auth/refresh" \
 | `/api/jobs/:id` | GET | Cookie/Token | Poll job status |
 
 **Note:** All endpoints enforce organization-based authorization via RLS policies.
+
+---
+
+## Design System (@lyra/ui)
+
+Lyra uses a custom design system built from Figma Make exports, published as `@lyra/ui`.
+
+### Package Structure
+
+```
+packages/ui/
+├── src/
+│   ├── primitives/    # UIButton, UICard, UIInput, UIBadge, etc.
+│   ├── layout/        # TopNavBar, Sidebar, MusicPlayer
+│   ├── theme/         # ThemeProvider, tokens.css
+│   └── utils/         # cn() helper for className merging
+└── dist/              # Built outputs (CJS, ESM, types)
+```
+
+### Quick Usage
+
+```tsx
+import { UIButton, UICard, ThemeProvider } from "@lyra/ui";
+
+export default function Page() {
+  return (
+    <UICard>
+      <UIButton variant="default">Click me</UIButton>
+    </UICard>
+  );
+}
+```
+
+### Design Tokens
+
+All colors, spacing, typography, and other tokens are defined as CSS variables:
+
+```css
+--color-bg, --color-fg, --color-primary, --color-accent
+--font-sans, --font-heading, --font-mono
+--spacing-*, --radius-*, --shadow-*
+```
+
+These are mapped to Tailwind utilities in `apps/web/tailwind.config.ts`:
+
+```tsx
+className="bg-background text-foreground border-border"
+```
+
+### Theme Switching
+
+The `ThemeProvider` component (already set up in `apps/web/app/layout.tsx`) handles light/dark themes via `data-theme` attribute and localStorage.
+
+### Source of Truth
+
+- **Figma exports**: `apps/web/figma_export/` (preserved for reference)
+- **Published package**: `packages/ui/src/` (normalized and versioned)
+- **Consumption**: All app code imports from `@lyra/ui`
+
+### Development
+
+```bash
+# Build the UI package
+pnpm build:ui
+
+# Watch mode for UI changes
+pnpm --filter @lyra/ui dev
+
+# Full monorepo dev
+pnpm dev
+```
+
+For detailed component APIs and usage examples, see `packages/ui/README.md`.
+
+---

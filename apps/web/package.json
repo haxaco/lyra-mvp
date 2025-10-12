@@ -11,6 +11,7 @@
     "@aws-sdk/client-s3": "^3.600.0",
     "@aws-sdk/s3-request-presigner": "^3.600.0",
     "@lyra/core": "workspace:*",
+    "@lyra/ui": "workspace:*",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "2.45.3",
