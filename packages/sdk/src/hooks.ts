@@ -17,6 +17,7 @@ import type {
 // Query keys
 const qk = {
   whoami: ["auth", "whoami"] as const,
+  org: ["org"] as const,
   tracks: ["tracks"] as const,
   track: (id: string) => ["tracks", id] as const,
   playlists: ["playlists"] as const,
@@ -30,6 +31,15 @@ export function useWhoAmI() {
   return useQuery({
     queryKey: qk.whoami,
     queryFn: () => apiFetch<WhoAmI>("/api/auth/whoami"),
+    staleTime: 60_000,
+  });
+}
+
+// Org hooks
+export function useOrg() {
+  return useQuery({
+    queryKey: qk.org,
+    queryFn: () => apiFetch<ApiOk<{ org: any; locations: any[] }>>("/api/org"),
     staleTime: 60_000,
   });
 }
@@ -174,4 +184,7 @@ export function useCreateJob() {
     },
   });
 }
+
+// Alias for useCreateJob
+export const useEnqueueJob = useCreateJob;
 
