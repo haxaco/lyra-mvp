@@ -7,7 +7,7 @@ import { Button } from "@lyra/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lyra/ui";
 import { Input } from "@lyra/ui";
 import { Badge } from "@lyra/ui";
-import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@lyra/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,

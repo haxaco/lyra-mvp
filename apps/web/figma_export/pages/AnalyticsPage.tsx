@@ -13,7 +13,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lyra/ui";
-import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@lyra/ui";
 import {
   Select,
   SelectContent,
