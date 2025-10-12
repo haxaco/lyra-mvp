@@ -13,7 +13,7 @@ export default function AnalyticsController() {
     { title: "Avg. Completion", value: "—", change: "0%", trend: "neutral" as const },
   ];
 
-  const streamingData = [];
+  const streamingData: Array<{ label: string; value: number }> = [];
   const topGenres: Array<{ genre: string; streams: number; percentage: number }> = [];
   const topPlaylists: Array<{ name: string; streams: number; skipRate: number }> = [];
 
