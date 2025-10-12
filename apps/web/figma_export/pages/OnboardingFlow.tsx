@@ -88,7 +88,7 @@ export const OnboardingFlow = React.forwardRef<HTMLDivElement, OnboardingFlowPro
                     id="org-name"
                     placeholder="e.g., Sunrise Café"
                     value={data.organizationName || ""}
-                    onChange={(e) =>
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       updateData({ organizationName: e.target.value })
                     }
                   />
@@ -100,7 +100,7 @@ export const OnboardingFlow = React.forwardRef<HTMLDivElement, OnboardingFlowPro
                     id="industry"
                     placeholder="e.g., Food & Beverage"
                     value={data.industry || ""}
-                    onChange={(e) => updateData({ industry: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateData({ industry: e.target.value })}
                   />
                 </div>
 
@@ -195,7 +195,7 @@ export const OnboardingFlow = React.forwardRef<HTMLDivElement, OnboardingFlowPro
                   />
                   <Button
                     variant="outline"
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent) => {
                       const input =
                         e.currentTarget.previousElementSibling as HTMLInputElement;
                       if (input?.value.trim()) {

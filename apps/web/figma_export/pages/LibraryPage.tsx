@@ -113,7 +113,7 @@ export const LibraryPage = React.forwardRef<HTMLDivElement, LibraryPageProps>(
               type="search"
               placeholder="Search songs or artists..."
               value={searchValue}
-              onChange={(e) => onSearchChange?.(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange?.(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -195,7 +195,7 @@ export const LibraryPage = React.forwardRef<HTMLDivElement, LibraryPageProps>(
                         {index + 1}
                       </span>
                       <button
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
                           onSongPlay?.(song.id);
                         }}
@@ -244,7 +244,7 @@ export const LibraryPage = React.forwardRef<HTMLDivElement, LibraryPageProps>(
                     {/* Actions (Desktop) */}
                     <div className="hidden md:flex col-span-1 items-center justify-end gap-2">
                       <button
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
                           onSongLike?.(song.id);
                         }}
@@ -266,7 +266,7 @@ export const LibraryPage = React.forwardRef<HTMLDivElement, LibraryPageProps>(
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           asChild
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         >
                           <button className="p-2 rounded-md text-muted-foreground hover:text-foreground transition-colors">
                             <MoreVertical className="h-4 w-4" />
@@ -274,7 +274,7 @@ export const LibraryPage = React.forwardRef<HTMLDivElement, LibraryPageProps>(
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               onSongPlay?.(song.id);
                             }}
@@ -283,7 +283,7 @@ export const LibraryPage = React.forwardRef<HTMLDivElement, LibraryPageProps>(
                             Play Now
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               onAddToPlaylist?.(song.id);
                             }}
@@ -291,7 +291,7 @@ export const LibraryPage = React.forwardRef<HTMLDivElement, LibraryPageProps>(
                             Add to Playlist
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               onSongLike?.(song.id);
                             }}
