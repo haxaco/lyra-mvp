@@ -8,6 +8,9 @@ import { useRouter } from "next/navigation";
 export default function PlaylistsIndexController() {
   const { data, isLoading } = usePlaylists();
   const router = useRouter();
+  const [searchValue, setSearchValue] = React.useState("");
+  const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
+  const [filter, setFilter] = React.useState<"all" | "active" | "draft" | "scheduled">("all");
 
   const playlists = (data?.items ?? []).map(p => ({
     id: p.id,
@@ -22,9 +25,17 @@ export default function PlaylistsIndexController() {
     <WithAppShell>
       <PlaylistsIndexPage
         playlists={playlists}
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        filter={filter}
+        onFilterChange={setFilter}
         onCreatePlaylist={() => router.push("/playlist-builder")}
         onPlaylistClick={(id) => router.push(`/playlists/${id}`)}
         onPlaylistPlay={() => {}}
+        onPlaylistEdit={() => {}}
+        onPlaylistDelete={() => {}}
       />
     </WithAppShell>
   );
