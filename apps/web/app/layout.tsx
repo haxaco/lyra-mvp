@@ -1,13 +1,13 @@
-import { ThemeProvider } from "@lyra/ui";
+import { Providers } from "../components/Providers";
 import "../styles/globals.css";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <ThemeProvider defaultTheme="dark">
+        <Providers>
           {children}
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );
