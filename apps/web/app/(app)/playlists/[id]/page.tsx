@@ -12,15 +12,10 @@ export default function PlaylistViewerController() {
   const { data, isLoading } = usePlaylist(id);
   const { playQueue } = usePlayer();
 
-  const playlist = data?.playlist
-    ? { 
-        id: data.playlist.id, 
-        name: data.playlist.name, 
-        createdAt: data.playlist.created_at,
-        description: undefined,
-        imageUrl: undefined,
-      }
-    : { id, name: "Playlist", createdAt: "", description: undefined, imageUrl: undefined };
+  const playlistName = data?.playlist?.name || "Untitled Playlist";
+  const totalTracks = data?.items?.length || 0;
+  const totalDuration = (data?.items ?? []).reduce((sum, i) => sum + (i.tracks?.duration_seconds || 0), 0);
+  const durationStr = `${Math.floor(totalDuration / 60)}:${String(totalDuration % 60).padStart(2, '0')}`;
 
   const tracks = (data?.items ?? [])
     .filter(i => i.tracks)
@@ -31,15 +26,20 @@ export default function PlaylistViewerController() {
       duration: i.tracks!.duration_seconds 
         ? `${Math.floor(i.tracks!.duration_seconds / 60)}:${String(i.tracks!.duration_seconds % 60).padStart(2, '0')}` 
         : "0:00",
-      position: i.position,
+      genre: (i.tracks!.meta as any)?.genre || "",
+      isPlaying: false,
     }));
 
   return (
     <WithAppShell>
       <PlaylistViewerPage
-        playlist={playlist}
+        playlistName={playlistName}
+        playlistDescription={data?.playlist?.name}
+        playlistGenres={[]}
+        totalDuration={durationStr}
+        trackCount={totalTracks}
+        createdDate={data?.playlist?.created_at}
         tracks={tracks}
-        isLoading={isLoading}
         onPlayAll={async () => {
           const queue = (data?.items ?? []).filter(i => i.tracks).map((i) => ({
             id: i.tracks!.id,
@@ -54,9 +54,9 @@ export default function PlaylistViewerController() {
           const url = await getPlayableUrl(tr.r2_key || "");
           await playQueue([{ id: tr.id, title: tr.title, getUrl: async () => url }]);
         }}
-        onRemoveTrack={() => {}}
-        onReorderTracks={() => {}}
-        onRenamePlaylist={() => {}}
+        onBack={() => window.history.back()}
+        onEdit={() => {}}
+        onDelete={() => {}}
       />
     </WithAppShell>
   );

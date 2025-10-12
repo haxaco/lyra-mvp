@@ -12,19 +12,19 @@ export default function PlaylistsIndexController() {
   const playlists = (data?.items ?? []).map(p => ({
     id: p.id,
     name: p.name,
-    createdAt: p.created_at,
     imageUrl: undefined,
-    description: undefined,
-    tracksCount: 0, // We don't have this in the basic list endpoint
+    trackCount: 0,
+    duration: "0:00",
+    lastModified: p.created_at,
   }));
 
   return (
     <WithAppShell>
       <PlaylistsIndexPage
         playlists={playlists}
-        isLoading={isLoading}
-        onSelectPlaylist={(id) => router.push(`/playlists/${id}`)}
-        onCreateNew={() => router.push("/playlist-builder")}
+        onCreatePlaylist={() => router.push("/playlist-builder")}
+        onPlaylistClick={(id) => router.push(`/playlists/${id}`)}
+        onPlaylistPlay={() => {}}
       />
     </WithAppShell>
   );
