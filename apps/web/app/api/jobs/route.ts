@@ -5,6 +5,28 @@ import { r2Put, r2SignGet } from "@/lib/r2";
 
 const API_BASE = "https://api.mureka.ai";
 
+export async function GET() {
+  try {
+    const { supa, orgId } = await getOrgClientAndId();
+    if (!orgId) return NextResponse.json({ ok:false, error:"No org in session" }, { status: 401 });
+
+    const { data, error } = await supa
+      .from("generation_jobs")
+      .select("id, provider, model, prompt, status, error, created_at, started_at, finished_at")
+      .eq("organization_id", orgId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    
+    if (error) throw error;
+
+    console.log(`[jobs/GET] Retrieved ${data.length} jobs for org ${orgId}`);
+    return NextResponse.json({ ok:true, jobs: data });
+  } catch (e:any) {
+    console.error('[jobs/GET] Error:', e);
+    return NextResponse.json({ ok:false, error: e.message || String(e) }, { status: 500 });
+  }
+}
+
 // Minimal copy of the generate/poll logic; for production you can refactor into a shared module.
 type MurekaChoice = { id?: string; index?: number; url?: string; flac_url?: string; duration?: number; };
 type MurekaQueryResult = { id: string; status: string; model?: string; choices?: MurekaChoice[]; trace_id?: string; [k: string]: any; };
