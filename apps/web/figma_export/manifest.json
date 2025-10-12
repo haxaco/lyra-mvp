@@ -1,0 +1,173 @@
+{
+  "name": "Lyra Figma Export",
+  "version": "1.0.0",
+  "description": "Page-level and layout-level React exports for Lyra B2B AI Music web app",
+  "exportedAt": "2025-01-12T00:00:00.000Z",
+  "structure": {
+    "layouts": [
+      {
+        "name": "AppShell",
+        "path": "/layouts/AppShell.tsx",
+        "description": "Main application shell with top bar, sidebar, bottom player, and content area",
+        "features": [
+          "Fixed top navigation",
+          "Collapsible sidebar",
+          "Mobile responsive",
+          "Bottom player slot",
+          "User dropdown menu",
+          "Search integration"
+        ],
+        "props": {
+          "logo": "React.ReactNode - Logo element",
+          "topNav": "Object - Top navigation configuration",
+          "sidebar": "Object - Sidebar configuration with nav items",
+          "children": "React.ReactNode - Main content",
+          "bottomPlayer": "React.ReactNode - Music player component"
+        }
+      }
+    ],
+    "pages": [
+      {
+        "name": "OverviewPage",
+        "path": "/pages/OverviewPage.tsx",
+        "description": "Dashboard overview with stats, quick actions, and recent playlists",
+        "features": [
+          "Welcome banner with actions",
+          "Statistics cards",
+          "Quick action cards",
+          "Recent playlists grid",
+          "Empty states"
+        ]
+      },
+      {
+        "name": "PlaylistBuilderPage",
+        "path": "/pages/PlaylistBuilderPage.tsx",
+        "description": "AI playlist creation interface with sliders and genre selection",
+        "features": [
+          "Energy/tempo/mood sliders",
+          "Genre tag selection",
+          "Location assignment",
+          "Preview functionality",
+          "AI generation progress"
+        ]
+      },
+      {
+        "name": "PlaylistViewerPage",
+        "path": "/pages/PlaylistViewerPage.tsx",
+        "description": "Detailed playlist view with track listing and playback",
+        "features": [
+          "Hero section with cover art",
+          "Track table with play controls",
+          "Playlist metadata",
+          "Playback controls",
+          "Dropdown actions"
+        ]
+      },
+      {
+        "name": "PlaylistsIndexPage",
+        "path": "/pages/PlaylistsIndexPage.tsx",
+        "description": "Browse and manage all playlists with search and filters",
+        "features": [
+          "Grid/list view toggle",
+          "Search functionality",
+          "Status filters (all, active, draft, scheduled)",
+          "Playlist cards with actions",
+          "Empty states"
+        ]
+      },
+      {
+        "name": "LibraryPage",
+        "path": "/pages/LibraryPage.tsx",
+        "description": "Browse all songs with advanced filtering",
+        "features": [
+          "Song table with metadata",
+          "Search and filters (genre, mood)",
+          "Like/unlike functionality",
+          "Add to playlist",
+          "Responsive design"
+        ]
+      },
+      {
+        "name": "AnalyticsPage",
+        "path": "/pages/AnalyticsPage.tsx",
+        "description": "Performance metrics and insights dashboard",
+        "features": [
+          "Statistics overview",
+          "Streaming activity chart",
+          "Top genres breakdown",
+          "Top playlists ranking",
+          "Cost analysis",
+          "Engagement metrics"
+        ]
+      },
+      {
+        "name": "OnboardingFlow",
+        "path": "/pages/OnboardingFlow.tsx",
+        "description": "Multi-step onboarding wizard for new users",
+        "features": [
+          "Step-by-step progression",
+          "Organization setup",
+          "Location management",
+          "Business type selection",
+          "Progress indicator",
+          "Completion summary"
+        ]
+      }
+    ]
+  },
+  "dependencies": {
+    "required": [
+      "react@^18.0.0",
+      "lucide-react@0.487.0"
+    ],
+    "components": [
+      "../../components/ui/button",
+      "../../components/ui/card",
+      "../../components/ui/input",
+      "../../components/ui/badge",
+      "../../components/ui/select",
+      "../../components/ui/tabs",
+      "../../components/ui/avatar",
+      "../../components/ui/dropdown-menu",
+      "../../components/ui/slider",
+      "../../components/ui/label",
+      "../../components/ui/utils"
+    ]
+  },
+  "design": {
+    "colorPalette": {
+      "primary": "#FF6F61",
+      "secondary": "#F8EDEB",
+      "accent": "#FF8A80",
+      "background": "#FAF9F7",
+      "foreground": "#2B2B2B"
+    },
+    "responsive": {
+      "mobile": "< 640px",
+      "tablet": "640px - 1024px",
+      "desktop": "> 1024px"
+    },
+    "features": [
+      "Light/dark theme support via CSS variables",
+      "Mobile-first responsive design",
+      "Tailwind CSS utility classes",
+      "Consistent spacing and typography",
+      "Accessible components"
+    ]
+  },
+  "usage": {
+    "import": {
+      "layouts": "import { AppShell } from './figma_export/layouts';",
+      "pages": "import { OverviewPage, PlaylistBuilderPage } from './figma_export/pages';"
+    },
+    "example": "See DESIGN_SYSTEM_README.md for complete usage examples"
+  },
+  "notes": [
+    "All components are presentation-only with no API calls",
+    "Components are fully prop-driven for maximum flexibility",
+    "Mobile responsive with collapsible sidebar",
+    "Settings/Admin moved to user dropdown per requirements",
+    "Uses existing UI components from /components/ui/",
+    "Compatible with Next.js 14 App Router"
+  ]
+}
