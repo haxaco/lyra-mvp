@@ -121,7 +121,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
               type="search"
               placeholder="Search playlists..."
               value={searchValue}
-              onChange={(e) => onSearchChange?.(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange?.(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -207,7 +207,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
                       </div>
                     )}
                     <button
-                      onClick={(e) => {
+                      onClick={(e: React.MouseEvent) => {
                         e.stopPropagation();
                         onPlaylistPlay?.(playlist.id);
                       }}
@@ -233,7 +233,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         asChild
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
                       >
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <MoreVertical className="h-4 w-4" />
@@ -241,7 +241,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             onPlaylistPlay?.(playlist.id);
                           }}
@@ -250,7 +250,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
                           Play
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             onPlaylistEdit?.(playlist.id);
                           }}
@@ -259,7 +259,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             onPlaylistDelete?.(playlist.id);
                           }}
@@ -302,7 +302,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
                         </div>
                       )}
                       <button
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
                           onPlaylistPlay?.(playlist.id);
                         }}
@@ -335,7 +335,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         asChild
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
                       >
                         <Button variant="ghost" size="icon">
                           <MoreVertical className="h-4 w-4" />
@@ -343,7 +343,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             onPlaylistPlay?.(playlist.id);
                           }}
@@ -352,7 +352,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
                           Play
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             onPlaylistEdit?.(playlist.id);
                           }}
@@ -361,7 +361,7 @@ export const PlaylistsIndexPage = React.forwardRef<HTMLDivElement, PlaylistsInde
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             onPlaylistDelete?.(playlist.id);
                           }}

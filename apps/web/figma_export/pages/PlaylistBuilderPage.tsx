@@ -133,7 +133,7 @@ export const PlaylistBuilderPage = React.forwardRef<HTMLDivElement, PlaylistBuil
                     id="playlist-name"
                     placeholder="e.g., Morning Café Vibes"
                     value={playlistName}
-                    onChange={(e) => onPlaylistNameChange?.(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => onPlaylistNameChange?.(e.target.value)}
                   />
                 </div>
 

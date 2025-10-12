@@ -3,8 +3,18 @@ import * as React from "react";
 
 // Stub implementation - replace with full Radix UI implementation when needed
 export const DropdownMenu = ({ children }: { children: React.ReactNode }) => <>{children}</>;
-export const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, React.ComponentProps<"button">>(
-  (props, ref) => <button ref={ref} {...props} />
+
+interface DropdownMenuTriggerProps extends React.ComponentProps<"button"> {
+  asChild?: boolean;
+}
+
+export const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTriggerProps>(
+  ({ asChild, children, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      return React.cloneElement(children as any, { ref, ...props });
+    }
+    return <button ref={ref} {...props}>{children}</button>;
+  }
 );
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger";
 

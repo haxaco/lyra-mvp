@@ -289,7 +289,7 @@ export const OverviewPage = React.forwardRef<HTMLDivElement, OverviewPageProps>(
                         </div>
                       )}
                       <button
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
                           onPlaylistPlay?.(playlist.id);
                         }}

@@ -15,10 +15,14 @@ export default function PlaylistsIndexController() {
   const playlists = (data?.items ?? []).map(p => ({
     id: p.id,
     name: p.name,
-    imageUrl: undefined,
+    description: undefined,
+    genre: "Various",
     trackCount: 0,
     duration: "0:00",
-    lastModified: p.created_at,
+    coverUrl: undefined,
+    status: "active" as const,
+    createdAt: p.created_at,
+    updatedAt: p.created_at,
   }));
 
   return (
