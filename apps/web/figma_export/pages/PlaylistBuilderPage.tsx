@@ -6,8 +6,8 @@ import { Sparkles, Wand2, Save, Play, ArrowLeft } from "lucide-react";
 import { Button } from "@lyra/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lyra/ui";
 import { Input } from "@lyra/ui";
-import { Label } from "../../components/ui/label";
-import { Slider } from "../../components/ui/slider";
+import { Label } from "@lyra/ui";
+import { Slider } from "@lyra/ui";
 import { Badge } from "@lyra/ui";
 import { cn } from "@lyra/ui";
 

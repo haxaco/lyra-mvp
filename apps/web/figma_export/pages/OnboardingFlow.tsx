@@ -6,7 +6,7 @@ import { ArrowRight, ArrowLeft, Check, Building, MapPin, Music } from "lucide-re
 import { Button } from "@lyra/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lyra/ui";
 import { Input } from "@lyra/ui";
-import { Label } from "../../components/ui/label";
+import { Label } from "@lyra/ui";
 import { Badge } from "@lyra/ui";
 import { cn } from "@lyra/ui";
 

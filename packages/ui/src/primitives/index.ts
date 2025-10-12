@@ -9,6 +9,9 @@ export * from './UISkeleton';
 export * from './UIAvatar';
 export * from './UIDropdownMenu';
 export * from './UISelect';
+export * from './UILabel';
+export * from './UISlider';
+export * from './UITabs';
 
 // Compatibility aliases for Figma imports (without "UI" prefix)
 export { UIButton as Button, buttonVariants } from './UIButton';
@@ -40,4 +43,12 @@ export {
   SelectContent,
   SelectItem,
 } from './UISelect';
+export { UILabel as Label } from './UILabel';
+export { UISlider as Slider } from './UISlider';
+export {
+  UITabs as Tabs,
+  UITabsList as TabsList,
+  UITabsTrigger as TabsTrigger,
+  UITabsContent as TabsContent,
+} from './UITabs';
 
