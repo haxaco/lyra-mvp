@@ -26,6 +26,9 @@ importers:
       '@lyra/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@lyra/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@lyra/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -38,6 +41,9 @@ importers:
       '@supabase/supabase-js':
         specifier: 2.45.3
         version: 2.45.3
+      '@tanstack/react-query':
+        specifier: ^5.51.1
+        version: 5.90.2(react@18.2.0)
       clsx:
         specifier: 2.1.0
         version: 2.1.0
