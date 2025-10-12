@@ -7,4 +7,37 @@ export * from './UIInput';
 export * from './UIBadge';
 export * from './UISkeleton';
 export * from './UIAvatar';
+export * from './UIDropdownMenu';
+export * from './UISelect';
+
+// Compatibility aliases for Figma imports (without "UI" prefix)
+export { UIButton as Button, buttonVariants } from './UIButton';
+export { 
+  UICard as Card,
+  UICardHeader as CardHeader,
+  UICardFooter as CardFooter,
+  UICardTitle as CardTitle,
+  UICardAction as CardAction,
+  UICardDescription as CardDescription,
+  UICardContent as CardContent,
+} from './UICard';
+export { UIInput as Input } from './UIInput';
+export { UIBadge as Badge, badgeVariants } from './UIBadge';
+export { UISkeleton as Skeleton } from './UISkeleton';
+export { UIAvatar as Avatar, UIAvatarImage as AvatarImage, UIAvatarFallback as AvatarFallback } from './UIAvatar';
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from './UIDropdownMenu';
+export {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from './UISelect';
 

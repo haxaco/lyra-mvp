@@ -11,8 +11,8 @@ import {
   Heart,
   Users,
   DollarSign,
-} from "lucide-react@0.487.0";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+} from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lyra/ui";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
   Select,
@@ -20,8 +20,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
-import { cn } from "../../components/ui/utils";
+} from "@lyra/ui";
+import { cn } from "@lyra/ui";
 
 export interface AnalyticsStat {
   title: string;

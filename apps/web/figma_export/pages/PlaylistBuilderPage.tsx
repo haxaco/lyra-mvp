@@ -2,14 +2,14 @@
 "use client";
 
 import * as React from "react";
-import { Sparkles, Wand2, Save, Play, ArrowLeft } from "lucide-react@0.487.0";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
+import { Sparkles, Wand2, Save, Play, ArrowLeft } from "lucide-react";
+import { Button } from "@lyra/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@lyra/ui";
+import { Input } from "@lyra/ui";
 import { Label } from "../../components/ui/label";
 import { Slider } from "../../components/ui/slider";
-import { Badge } from "../../components/ui/badge";
-import { cn } from "../../components/ui/utils";
+import { Badge } from "@lyra/ui";
+import { cn } from "@lyra/ui";
 
 export interface GenreTag {
   id: string;
