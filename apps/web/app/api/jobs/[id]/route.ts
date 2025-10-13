@@ -1,15 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getOrgClientAndId } from "@/lib/org";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string }}) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { supa, orgId } = await getOrgClientAndId();
     if (!orgId) return NextResponse.json({ ok:false, error:"No org in session" }, { status: 401 });
 
+    const resolvedParams = await params;
     const { data, error } = await supa
       .from("generation_jobs")
       .select("id, status, error, provider, model, prompt, created_at, started_at, finished_at")
-      .eq("id", params.id)
+      .eq("id", resolvedParams.id)
       .single();
     if (error) throw error;
 
