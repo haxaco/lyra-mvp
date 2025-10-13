@@ -7,7 +7,7 @@ export async function GET(req: Request) {
     const auth = req.headers.get("authorization");
     const supa = auth?.startsWith("Bearer ")
       ? supabaseFromAuthHeader(auth)
-      : supabaseServer();
+      : await supabaseServer();
     
     const { data: { user }, error } = await supa.auth.getUser();
     if (error || !user) {

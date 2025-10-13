@@ -6,11 +6,11 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST() {
   try {
-    const h = headers();
+    const h = await headers();
     const authHeader = h.get("authorization");
     const supa = authHeader?.startsWith("Bearer ")
       ? supabaseFromAuthHeader(authHeader)
-      : supabaseServer();
+      : await supabaseServer();
     
     const { data: { user } } = await supa.auth.getUser();
     if (!user?.id) return NextResponse.json({ ok:false, error:"Unauthorized" }, { status: 401 });

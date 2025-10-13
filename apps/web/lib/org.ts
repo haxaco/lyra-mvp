@@ -3,11 +3,11 @@ import { supabaseFromAuthHeader } from "@/lib/supabaseFromAuthHeader";
 import { supabaseServer } from "@/lib/supabaseServer";
 
 export async function getOrgClientAndId() {
-  const h = headers();
+  const h = await headers();
   const auth = h.get("authorization");
   const supa = auth?.startsWith("Bearer ")
     ? supabaseFromAuthHeader(auth)
-    : supabaseServer();
+    : await supabaseServer();
 
   const { data: { user } } = await supa.auth.getUser();
   const userId = user?.id || null;
