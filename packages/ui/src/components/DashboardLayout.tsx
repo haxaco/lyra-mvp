@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TopNavBar } from './TopNavBar';
 import { Sidebar } from './Sidebar';
-import { MusicPlayer } from './MusicPlayerResponsive';
+import { MusicPlayerResponsive } from './MusicPlayerResponsive';
 import { DashboardView } from './Dashboard';
 
 interface DashboardLayoutProps {
@@ -140,10 +140,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         
         {/* Player content */}
         <div className="relative h-full">
-          <MusicPlayer
+          <MusicPlayerResponsive
             currentTrack={currentTrack}
-            isPlaying={isPlaying}
-            onPlayPause={onPlayPause}
             onGoToPlaylist={onGoToPlaylist}
           />
         </div>

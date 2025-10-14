@@ -40,7 +40,7 @@ interface Song {
   duration: string;
   genre: string;
   mood: string;
-  provider: 'OpenAI' | 'Anthropic' | 'Google AI' | 'Stability AI';
+  provider: 'OpenAI' | 'Anthropic' | 'Google AI' | 'Stability AI' | 'Mureka' | 'Suno' | 'MusicGen';
   playlistName: string;
   createdAt: string;
   plays: number;
@@ -49,19 +49,27 @@ interface Song {
 
 interface SongLibraryProps {
   onPlayTrack?: (track: any) => void;
+  songs?: Song[]; // Optional external songs data
+  currentTrack?: any; // Currently playing track
+  isPlaying?: boolean; // Whether music is currently playing
 }
 
-export const SongLibrary: React.FC<SongLibraryProps> = ({ onPlayTrack }) => {
+export const SongLibrary: React.FC<SongLibraryProps> = ({ 
+  onPlayTrack, 
+  songs, 
+  currentTrack, 
+  isPlaying = false 
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMood, setFilterMood] = useState('all');
   const [filterGenre, setFilterGenre] = useState('all');
   const [filterProvider, setFilterProvider] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  // Remove local currentlyPlaying state since we're using props now
   const [likedSongs, setLikedSongs] = useState<Set<string>>(new Set(['1', '3', '7']));
 
-  // Mock songs data
-  const allSongs: Song[] = [
+  // Use external songs data if provided, otherwise fallback to mock data
+  const allSongs: Song[] = songs || [
     {
       id: '1',
       title: 'Morning Sunlight',
@@ -223,7 +231,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = ({ onPlayTrack }) => {
   // Filter options
   const moodOptions = ['all', 'Calm', 'Energetic', 'Chill', 'Focus', 'Peaceful', 'Upbeat', 'Intense', 'Elegant', 'Sophisticated'];
   const genreOptions = ['all', 'Ambient', 'Electronic', 'Jazz', 'Pop', 'Classical', 'Lounge'];
-  const providerOptions = ['all', 'OpenAI', 'Anthropic', 'Google AI', 'Stability AI'];
+  const providerOptions = ['all', 'OpenAI', 'Anthropic', 'Google AI', 'Stability AI', 'Mureka', 'Suno', 'MusicGen'];
 
   // Provider badge colors
   const getProviderColor = (provider: string) => {
@@ -236,6 +244,12 @@ export const SongLibrary: React.FC<SongLibraryProps> = ({ onPlayTrack }) => {
         return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
       case 'Stability AI':
         return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'Mureka':
+        return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+      case 'Suno':
+        return 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400';
+      case 'MusicGen':
+        return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400';
       default:
         return 'bg-secondary text-secondary-foreground';
     }
@@ -256,10 +270,12 @@ export const SongLibrary: React.FC<SongLibraryProps> = ({ onPlayTrack }) => {
   });
 
   const handlePlay = (song: Song) => {
-    if (currentlyPlaying === song.id) {
-      setCurrentlyPlaying(null);
+    // If this is the currently playing track and it's playing, pause it
+    if (currentTrack?.id === song.id && isPlaying) {
+      // Call onPlayTrack with null to signal pause
+      onPlayTrack?.(null);
     } else {
-      setCurrentlyPlaying(song.id);
+      // Otherwise, play this track
       onPlayTrack?.({
         id: song.id,
         title: song.title,
@@ -455,7 +471,11 @@ export const SongLibrary: React.FC<SongLibraryProps> = ({ onPlayTrack }) => {
                   <TableRow
                     key={song.id}
                     className={`transition-colors ${
-                      index % 2 === 0 ? 'bg-[#FAF9F7] dark:bg-card' : 'bg-background'
+                      currentTrack?.id === song.id && isPlaying
+                        ? 'bg-primary/10 border-l-4 border-l-primary'
+                        : index % 2 === 0 
+                        ? 'bg-[#FAF9F7] dark:bg-card' 
+                        : 'bg-background'
                     } hover:bg-secondary/30`}
                   >
                     {/* Play Button */}
@@ -466,7 +486,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = ({ onPlayTrack }) => {
                         className="h-8 w-8 p-0 rounded-full hover:bg-primary/20"
                         onClick={() => handlePlay(song)}
                       >
-                        {currentlyPlaying === song.id ? (
+                        {currentTrack?.id === song.id && isPlaying ? (
                           <Pause className="w-4 h-4 text-primary" />
                         ) : (
                           <Play className="w-4 h-4 text-primary" />

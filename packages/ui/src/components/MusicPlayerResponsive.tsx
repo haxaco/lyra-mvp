@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../primitives/button';
 import { Slider } from '../primitives/slider';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -20,19 +20,19 @@ import {
 
 interface MusicPlayerProps {
   currentTrack: any;
-  isPlaying: boolean;
-  onPlayPause: () => void;
   onGoToPlaylist?: (playlist: any) => void;
+  onPlayStateChange?: (isPlaying: boolean) => void;
 }
 
-export const MusicPlayer: React.FC<MusicPlayerProps> = ({ 
+export const MusicPlayerResponsive: React.FC<MusicPlayerProps> = ({ 
   currentTrack, 
-  isPlaying, 
-  onPlayPause,
-  onGoToPlaylist
+  onGoToPlaylist,
+  onPlayStateChange
 }) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(204); // 3:24 in seconds
+  const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState([75]);
   const [isMuted, setIsMuted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -40,44 +40,131 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   const [isShuffle, setIsShuffle] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
+  // Handle audio element events
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isPlaying && currentTrack) {
-      interval = setInterval(() => {
-        setCurrentTime(prev => {
-          if (prev >= duration) {
-            return 0;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-    }
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration);
+      setCurrentTime(0);
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+    };
+
+    const handleError = (e: Event) => {
+      console.error('Audio error:', e);
+      setIsPlaying(false);
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
 
     return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
     };
-  }, [isPlaying, currentTrack, duration]);
+  }, []);
+
+  // Handle play/pause when isPlaying state changes
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.play().catch(error => {
+        console.error('Error playing audio:', error);
+        setIsPlaying(false);
+      });
+    } else {
+      audio.pause();
+    }
+  }, [isPlaying]);
+
+  // Notify parent component of play state changes
+  useEffect(() => {
+    onPlayStateChange?.(isPlaying);
+  }, [isPlaying, onPlayStateChange]);
+
+  // Update audio source when track changes
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !currentTrack?.audioUrl) {
+      // If no track, reset everything
+      setCurrentTime(0);
+      setDuration(0);
+      setIsPlaying(false);
+      return;
+    }
+
+    console.log('🎵 Track changed, loading new track:', currentTrack.id);
+    
+    // Stop current playback
+    audio.pause();
+    audio.currentTime = 0;
+    
+    // Load new track
+    audio.src = currentTrack.audioUrl;
+    audio.load();
+    setCurrentTime(0);
+    setDuration(0);
+    
+    // Reset play state and auto-play new track
+    setIsPlaying(false);
+    setTimeout(() => {
+      setIsPlaying(true);
+    }, 100); // Small delay to ensure audio is loaded
+  }, [currentTrack?.id, currentTrack?.audioUrl]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handlePlayPause = () => {
+    console.log('🎵 MusicPlayerResponsive: handlePlayPause called! isPlaying:', isPlaying);
+    setIsPlaying(!isPlaying);
+  };
+
   const handleSeek = (value: number[]) => {
-    setCurrentTime(value[0]);
+    const audio = audioRef.current;
+    if (audio) {
+      audio.currentTime = value[0];
+      setCurrentTime(value[0]);
+    }
   };
 
   const handleVolumeChange = (value: number[]) => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.volume = value[0] / 100;
+    }
     setVolume(value);
     setIsMuted(value[0] === 0);
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    const audio = audioRef.current;
+    if (audio) {
+      if (isMuted) {
+        audio.volume = volume[0] / 100;
+        setIsMuted(false);
+      } else {
+        audio.volume = 0;
+        setIsMuted(true);
+      }
+    }
   };
 
   if (!currentTrack) {
@@ -177,7 +264,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
             </Button>
             
             <Button 
-              onClick={onPlayPause}
+              onClick={handlePlayPause}
               className="w-20 h-20 rounded-full bg-white text-charcoal hover:scale-105 transition-transform shadow-2xl"
             >
               {isPlaying ? (
@@ -300,7 +387,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
             </Button>
             
             <Button 
-              onClick={onPlayPause}
+              onClick={handlePlayPause}
               className="w-10 h-10 xl:w-12 xl:h-12 rounded-full bg-charcoal dark:bg-white text-white dark:text-charcoal hover:scale-105 transition-transform shadow-lg"
             >
               {isPlaying ? (
@@ -345,7 +432,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
         {/* Tablet Play Button */}
         <div className="flex lg:hidden items-center gap-2">
           <Button 
-            onClick={onPlayPause}
+            onClick={handlePlayPause}
             className="w-10 h-10 rounded-full bg-charcoal dark:bg-white text-white dark:text-charcoal hover:scale-105 transition-transform shadow-lg"
           >
             {isPlaying ? (
@@ -438,7 +525,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
           <Button 
             onClick={(e) => {
               e.stopPropagation();
-              onPlayPause();
+              handlePlayPause();
             }}
             className="w-10 h-10 rounded-full bg-charcoal dark:bg-white text-white dark:text-charcoal hover:scale-105 transition-transform shadow-lg"
           >
@@ -450,6 +537,14 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Hidden audio element */}
+      <audio
+        ref={audioRef}
+        preload="metadata"
+        style={{ display: 'none' }}
+      />
     </>
   );
 };
+

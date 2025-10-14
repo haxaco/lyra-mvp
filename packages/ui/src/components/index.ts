@@ -18,6 +18,7 @@ export * from './PlaylistBuilder';
 export * from './PlaylistCard';
 export * from './PlaylistLibrary';
 export * from './PlaylistViewer';
+export * from './SongBuilder';
 export * from './SongLibrary';
 
 // UI & Layout Components
