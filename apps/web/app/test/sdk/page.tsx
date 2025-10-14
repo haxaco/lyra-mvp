@@ -10,7 +10,7 @@ import {
   useCreatePlaylist,
   useCreateJob,
 } from "@lyra/sdk";
-import { UIButton, UICard, UICardHeader, UICardTitle, UICardContent } from "@lyra/ui";
+import { Button, Card, CardHeader, CardTitle, CardContent } from "@lyra/ui";
 import { useState } from "react";
 
 export default function SDKTestPage() {
@@ -172,26 +172,26 @@ export default function SDKTestPage() {
           <h2 className="text-2xl font-semibold text-foreground">Interactive Tests</h2>
 
           {/* User Info Card */}
-          <UICard>
-            <UICardHeader>
-              <UICardTitle>👤 Current User (useWhoAmI)</UICardTitle>
-            </UICardHeader>
-            <UICardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle>👤 Current User (useWhoAmI)</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-2">
                 <p><strong>User ID:</strong> {whoami.data?.user_id}</p>
                 <p><strong>Email:</strong> {whoami.data?.email || "N/A"}</p>
                 <p><strong>Organization:</strong> {whoami.data?.organization_id || "None"}</p>
                 <p><strong>Role:</strong> {whoami.data?.role || "None"}</p>
               </div>
-            </UICardContent>
-          </UICard>
+            </CardContent>
+          </Card>
 
           {/* Tracks Management */}
-          <UICard>
-            <UICardHeader>
-              <UICardTitle>🎵 Tracks (useTracks, useCreateTrack, useDeleteTrack)</UICardTitle>
-            </UICardHeader>
-            <UICardContent className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>🎵 Tracks (useTracks, useCreateTrack, useDeleteTrack)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               {/* Create Track Form */}
               <div className="flex gap-2">
                 <input
@@ -202,15 +202,15 @@ export default function SDKTestPage() {
                   className="flex-1 px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   disabled={createTrack.isPending}
                 />
-                <UIButton 
+                <Button 
                   onClick={handleCreateTrack}
                   disabled={createTrack.isPending}
                 >
                   {createTrack.isPending ? "Creating..." : "Create Track"}
-                </UIButton>
-                <UIButton variant="outline" onClick={() => tracks.refetch()}>
+                </Button>
+                <Button variant="outline" onClick={() => tracks.refetch()}>
                   Refresh
-                </UIButton>
+                </Button>
               </div>
 
               {/* Tracks List */}
@@ -221,7 +221,7 @@ export default function SDKTestPage() {
                     {tracks.data.items.slice(0, 10).map((track) => (
                       <li key={track.id} className="flex items-center justify-between">
                         <span>{track.title || track.id}</span>
-                        <UIButton 
+                        <Button 
                           variant="destructive" 
                           size="sm"
                           onClick={() => handleDeleteTrack(track.id)}
@@ -229,7 +229,7 @@ export default function SDKTestPage() {
                           className="ml-4"
                         >
                           Delete
-                        </UIButton>
+                        </Button>
                       </li>
                     ))}
                   </ul>
@@ -237,15 +237,15 @@ export default function SDKTestPage() {
               ) : (
                 <p className="text-muted-foreground">No tracks found</p>
               )}
-            </UICardContent>
-          </UICard>
+            </CardContent>
+          </Card>
 
           {/* Playlists Management */}
-          <UICard>
-            <UICardHeader>
-              <UICardTitle>📋 Playlists (usePlaylists, useCreatePlaylist)</UICardTitle>
-            </UICardHeader>
-            <UICardContent className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>📋 Playlists (usePlaylists, useCreatePlaylist)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               {/* Create Playlist Form */}
               <div className="flex gap-2">
                 <input
@@ -256,15 +256,15 @@ export default function SDKTestPage() {
                   className="flex-1 px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   disabled={createPlaylist.isPending}
                 />
-                <UIButton 
+                <Button 
                   onClick={handleCreatePlaylist}
                   disabled={createPlaylist.isPending}
                 >
                   {createPlaylist.isPending ? "Creating..." : "Create Playlist"}
-                </UIButton>
-                <UIButton variant="outline" onClick={() => playlists.refetch()}>
+                </Button>
+                <Button variant="outline" onClick={() => playlists.refetch()}>
                   Refresh
-                </UIButton>
+                </Button>
               </div>
               <p className="text-xs text-muted-foreground">
                 Will add first 3 tracks to the new playlist
@@ -283,15 +283,15 @@ export default function SDKTestPage() {
               ) : (
                 <p className="text-muted-foreground">No playlists found</p>
               )}
-            </UICardContent>
-          </UICard>
+            </CardContent>
+          </Card>
 
           {/* Jobs Management */}
-          <UICard>
-            <UICardHeader>
-              <UICardTitle>🎼 Generation Jobs (useJobs, useCreateJob)</UICardTitle>
-            </UICardHeader>
-            <UICardContent className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>🎼 Generation Jobs (useJobs, useCreateJob)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               {/* Create Job Form */}
               <div className="space-y-2">
                 <input
@@ -303,16 +303,16 @@ export default function SDKTestPage() {
                   disabled={createJob.isPending}
                 />
                 <div className="flex gap-2">
-                  <UIButton 
+                  <Button 
                     onClick={handleCreateJob}
                     disabled={createJob.isPending}
                     className="flex-1"
                   >
                     {createJob.isPending ? "Generating... (may take 30-60s)" : "Generate Music (2 tracks)"}
-                  </UIButton>
-                  <UIButton variant="outline" onClick={() => jobs.refetch()}>
+                  </Button>
+                  <Button variant="outline" onClick={() => jobs.refetch()}>
                     Refresh
-                  </UIButton>
+                  </Button>
                 </div>
               </div>
 
@@ -348,15 +348,15 @@ export default function SDKTestPage() {
               ) : (
                 <p className="text-muted-foreground">No jobs found</p>
               )}
-            </UICardContent>
-          </UICard>
+            </CardContent>
+          </Card>
 
           {/* SDK Info */}
-          <UICard>
-            <UICardHeader>
-              <UICardTitle>ℹ️ SDK Information</UICardTitle>
-            </UICardHeader>
-            <UICardContent className="space-y-2 text-sm">
+          <Card>
+            <CardHeader>
+              <CardTitle>ℹ️ SDK Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
               <p><strong>Package:</strong> @lyra/sdk</p>
               <p><strong>Provider:</strong> QueryClientProvider with React Query</p>
               <p><strong>Hooks Used:</strong> useWhoAmI, useTracks, usePlaylists, useJobs, useCreateTrack, useDeleteTrack, useCreatePlaylist, useCreateJob</p>
@@ -376,8 +376,8 @@ export default function SDKTestPage() {
                   📚 See <code className="px-1 py-0.5 bg-muted rounded">packages/sdk/README.md</code> for complete documentation
                 </p>
               </div>
-            </UICardContent>
-          </UICard>
+            </CardContent>
+          </Card>
         </section>
       </div>
     </div>
