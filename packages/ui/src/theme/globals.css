@@ -1,0 +1,337 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  
+  /* Lyra Brand Colors - Light Theme */
+  --background: #FAF9F7; /* Off-White */
+  --foreground: #2B2B2B; /* Charcoal */
+  --card: #ffffff;
+  --card-foreground: #2B2B2B;
+  --popover: #ffffff;
+  --popover-foreground: #2B2B2B;
+  --primary: #FF6F61; /* Coral Pink */
+  --primary-foreground: #ffffff;
+  --secondary: #F8EDEB; /* Soft Beige */
+  --secondary-foreground: #2B2B2B;
+  --muted: #F5CBA7; /* Warm Nude */
+  --muted-foreground: #6B5B5B;
+  --accent: #FF8A80; /* Electric Salmon */
+  --accent-foreground: #ffffff;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(43, 43, 43, 0.1);
+  --input: transparent;
+  --input-background: #F8EDEB;
+  --switch-background: #E6B8C2;
+  --font-weight-medium: 600;
+  --font-weight-normal: 400;
+  --ring: #FF6F61;
+  
+  /* Lyra Brand Chart Colors */
+  --chart-1: #FF6F61; /* Coral Pink */
+  --chart-2: #E6B8C2; /* Blush */
+  --chart-3: #F5CBA7; /* Warm Nude */
+  --chart-4: #FF8A80; /* Electric Salmon */
+  --chart-5: #D4A59A; /* Warm Coral */
+  
+  --radius: 1rem; /* 16px for rounded cards */
+  
+  /* Sidebar Colors */
+  --sidebar: #F8EDEB; /* Soft Beige */
+  --sidebar-foreground: #2B2B2B;
+  --sidebar-primary: #FF6F61; /* Coral Pink */
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #2B2B2B;
+  --sidebar-border: rgba(43, 43, 43, 0.08);
+  --sidebar-ring: #FF6F61;
+  
+  /* Brand Gradient Colors */
+  --gradient-start: #E6B8C2; /* Blush */
+  --gradient-end: #F5CBA7; /* Warm Nude */
+  --coral-gradient-start: #FF6F61;
+  --coral-gradient-end: #FF8A80;
+}
+
+.dark {
+  /* Dark Theme with Warm Undertones */
+  --background: #1A1816; /* Warm Dark */
+  --foreground: #FAF9F7;
+  --card: #242220; /* Warm Dark Card */
+  --card-foreground: #FAF9F7;
+  --popover: #242220;
+  --popover-foreground: #FAF9F7;
+  --primary: #FF8A80; /* Electric Salmon for dark */
+  --primary-foreground: #1A1816;
+  --secondary: #2D2A28; /* Warm Dark Secondary */
+  --secondary-foreground: #F8EDEB;
+  --muted: #3A3734; /* Warm Muted */
+  --muted-foreground: #B8ADA8;
+  --accent: #FF6F61; /* Coral Pink */
+  --accent-foreground: #1A1816;
+  --destructive: #FF5A52;
+  --destructive-foreground: #1A1816;
+  --border: rgba(248, 237, 235, 0.12);
+  --input: rgba(248, 237, 235, 0.05);
+  --input-background: #2D2A28;
+  --switch-background: #3A3734;
+  --ring: #FF8A80;
+  
+  /* Dark Chart Colors */
+  --chart-1: #FF8A80; /* Electric Salmon */
+  --chart-2: #E6B8C2; /* Blush */
+  --chart-3: #F5CBA7; /* Warm Nude */
+  --chart-4: #FF6F61; /* Coral Pink */
+  --chart-5: #D4A59A; /* Warm Coral */
+  
+  /* Dark Sidebar */
+  --sidebar: #1F1D1B; /* Darker Warm */
+  --sidebar-foreground: #FAF9F7;
+  --sidebar-primary: #FF8A80;
+  --sidebar-primary-foreground: #1A1816;
+  --sidebar-accent: #2D2A28;
+  --sidebar-accent-foreground: #F8EDEB;
+  --sidebar-border: rgba(248, 237, 235, 0.08);
+  --sidebar-ring: #FF8A80;
+  
+  /* Dark Gradients */
+  --gradient-start: #3A3734;
+  --gradient-end: #2D2A28;
+  --coral-gradient-start: #FF6F61;
+  --coral-gradient-end: #FF8A80;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Brand Gradient Utilities */
+  --color-gradient-start: var(--gradient-start);
+  --color-gradient-end: var(--gradient-end);
+  --color-coral-gradient-start: var(--coral-gradient-start);
+  --color-coral-gradient-end: var(--coral-gradient-end);
+  
+  /* Individual gradient colors */
+  --color-blush: #E6B8C2;
+  --color-warm-nude: #F5CBA7;
+  --color-charcoal: #2B2B2B;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Lyra Brand Gradient Utilities */
+@layer utilities {
+  .bg-gradient-lyra {
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  }
+  
+  .bg-gradient-coral {
+    background: linear-gradient(135deg, var(--coral-gradient-start), var(--coral-gradient-end));
+  }
+  
+  .text-gradient-coral {
+    background: linear-gradient(135deg, var(--coral-gradient-start), var(--coral-gradient-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .border-gradient-lyra {
+    border: 1px solid transparent;
+    background: linear-gradient(var(--background), var(--background)) padding-box,
+                linear-gradient(135deg, var(--gradient-start), var(--gradient-end)) border-box;
+  }
+  
+  /* Additional Lyra brand utilities */
+  .card-gradient {
+    background: linear-gradient(135deg, rgba(255, 111, 97, 0.05), rgba(230, 184, 194, 0.05));
+    border: 1px solid rgba(255, 111, 97, 0.1);
+  }
+  
+  .hover-coral {
+    transition: all 0.2s ease;
+  }
+  
+  .hover-coral:hover {
+    background: linear-gradient(135deg, rgba(255, 111, 97, 0.1), rgba(255, 138, 128, 0.1));
+    transform: translateY(-1px);
+  }
+  
+  /* Frosted glass effect for TopNavBar */
+  .backdrop-blur-xl {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  
+  /* Custom scrollbar for sidebar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+  
+  .scrollbar-thumb-white\/20 {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+  
+  /* Responsive utilities for touch targets */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .touch-target-lg {
+    min-width: 48px;
+    min-height: 48px;
+  }
+  
+  /* Safe area for mobile devices */
+  @supports (padding: env(safe-area-inset-bottom)) {
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    .pt-safe {
+      padding-top: env(safe-area-inset-top);
+    }
+  }
+  
+  /* Responsive container queries support */
+  @container (max-width: 768px) {
+    .container-mobile {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+}
+
+/**
+ * Base typography with Lyra brand styling
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: 700; /* Outfit/Satoshi bold */
+      line-height: 1.4;
+      font-family: 'Outfit', 'Satoshi', system-ui, sans-serif;
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      font-weight: 600; /* Outfit/Satoshi semibold */
+      line-height: 1.4;
+      font-family: 'Outfit', 'Satoshi', system-ui, sans-serif;
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      line-height: 1.4;
+      font-family: 'Outfit', 'Satoshi', system-ui, sans-serif;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: 600;
+      line-height: 1.4;
+      font-family: 'Outfit', 'Satoshi', system-ui, sans-serif;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.6;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    label {
+      font-size: var(--text-sm);
+      font-weight: 500;
+      line-height: 1.4;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    button {
+      font-size: var(--text-sm);
+      font-weight: 600; /* Outfit/Inter semibold for buttons */
+      line-height: 1.4;
+      font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    }
+
+    input {
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.4;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Import Google Fonts for Lyra Brand Typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap');

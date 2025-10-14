@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/auth/callback",
   "/onboarding/bootstrap",
+  "/test-design-system",
 ];
 
 export async function middleware(req: NextRequest) {

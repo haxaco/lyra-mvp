@@ -1,0 +1,1000 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "name": "Lyra Design System Tokens",
+  "description": "Complete design token export for the Lyra B2B music streaming dashboard with warm, elegant color palette",
+  "version": "1.0.0",
+  "tokens": {
+    "color": {
+      "brand": {
+        "$type": "color",
+        "description": "Core brand identity colors",
+        "primary": {
+          "$value": "#FF6F61",
+          "name": "Coral Pink",
+          "cssVar": "--color-primary"
+        },
+        "secondary": {
+          "$value": "#F8EDEB",
+          "name": "Soft Beige",
+          "cssVar": "--color-secondary"
+        },
+        "accent": {
+          "$value": "#FF8A80",
+          "name": "Electric Salmon",
+          "cssVar": "--color-accent"
+        },
+        "blush": {
+          "$value": "#E6B8C2",
+          "name": "Blush",
+          "cssVar": "--color-blush"
+        },
+        "warm-nude": {
+          "$value": "#F5CBA7",
+          "name": "Warm Nude",
+          "cssVar": "--color-warm-nude"
+        },
+        "charcoal": {
+          "$value": "#2B2B2B",
+          "name": "Charcoal",
+          "cssVar": "--color-charcoal"
+        }
+      },
+      "bg": {
+        "$type": "color",
+        "description": "Background colors for surfaces",
+        "light": {
+          "base": {
+            "$value": "#FAF9F7",
+            "name": "Off-White",
+            "cssVar": "--color-background"
+          },
+          "card": {
+            "$value": "#ffffff",
+            "name": "Card White",
+            "cssVar": "--color-card"
+          },
+          "popover": {
+            "$value": "#ffffff",
+            "name": "Popover White",
+            "cssVar": "--color-popover"
+          },
+          "secondary": {
+            "$value": "#F8EDEB",
+            "name": "Soft Beige",
+            "cssVar": "--color-secondary"
+          },
+          "muted": {
+            "$value": "#F5CBA7",
+            "name": "Warm Nude",
+            "cssVar": "--color-muted"
+          },
+          "input": {
+            "$value": "transparent",
+            "name": "Input Transparent",
+            "cssVar": "--color-input"
+          },
+          "input-solid": {
+            "$value": "#F8EDEB",
+            "name": "Input Background",
+            "cssVar": "--color-input-background"
+          },
+          "switch": {
+            "$value": "#E6B8C2",
+            "name": "Switch Background",
+            "cssVar": "--color-switch-background"
+          }
+        },
+        "dark": {
+          "base": {
+            "$value": "#1A1816",
+            "name": "Warm Dark",
+            "cssVar": "--color-background"
+          },
+          "card": {
+            "$value": "#242220",
+            "name": "Warm Dark Card",
+            "cssVar": "--color-card"
+          },
+          "popover": {
+            "$value": "#242220",
+            "name": "Warm Dark Popover",
+            "cssVar": "--color-popover"
+          },
+          "secondary": {
+            "$value": "#2D2A28",
+            "name": "Warm Dark Secondary",
+            "cssVar": "--color-secondary"
+          },
+          "muted": {
+            "$value": "#3A3734",
+            "name": "Warm Muted",
+            "cssVar": "--color-muted"
+          },
+          "input": {
+            "$value": "rgba(248, 237, 235, 0.05)",
+            "name": "Dark Input Subtle",
+            "cssVar": "--color-input"
+          },
+          "input-solid": {
+            "$value": "#2D2A28",
+            "name": "Dark Input Background",
+            "cssVar": "--color-input-background"
+          },
+          "switch": {
+            "$value": "#3A3734",
+            "name": "Dark Switch Background",
+            "cssVar": "--color-switch-background"
+          }
+        }
+      },
+      "text": {
+        "$type": "color",
+        "description": "Text and foreground colors",
+        "light": {
+          "base": {
+            "$value": "#2B2B2B",
+            "name": "Charcoal",
+            "cssVar": "--color-foreground"
+          },
+          "card": {
+            "$value": "#2B2B2B",
+            "name": "Card Text",
+            "cssVar": "--color-card-foreground"
+          },
+          "popover": {
+            "$value": "#2B2B2B",
+            "name": "Popover Text",
+            "cssVar": "--color-popover-foreground"
+          },
+          "primary": {
+            "$value": "#ffffff",
+            "name": "Primary Button Text",
+            "cssVar": "--color-primary-foreground"
+          },
+          "secondary": {
+            "$value": "#2B2B2B",
+            "name": "Secondary Text",
+            "cssVar": "--color-secondary-foreground"
+          },
+          "muted": {
+            "$value": "#6B5B5B",
+            "name": "Muted Text",
+            "cssVar": "--color-muted-foreground"
+          },
+          "accent": {
+            "$value": "#ffffff",
+            "name": "Accent Text",
+            "cssVar": "--color-accent-foreground"
+          },
+          "destructive": {
+            "$value": "#ffffff",
+            "name": "Destructive Text",
+            "cssVar": "--color-destructive-foreground"
+          }
+        },
+        "dark": {
+          "base": {
+            "$value": "#FAF9F7",
+            "name": "Off-White",
+            "cssVar": "--color-foreground"
+          },
+          "card": {
+            "$value": "#FAF9F7",
+            "name": "Card Text",
+            "cssVar": "--color-card-foreground"
+          },
+          "popover": {
+            "$value": "#FAF9F7",
+            "name": "Popover Text",
+            "cssVar": "--color-popover-foreground"
+          },
+          "primary": {
+            "$value": "#1A1816",
+            "name": "Primary Button Text",
+            "cssVar": "--color-primary-foreground"
+          },
+          "secondary": {
+            "$value": "#F8EDEB",
+            "name": "Secondary Text",
+            "cssVar": "--color-secondary-foreground"
+          },
+          "muted": {
+            "$value": "#B8ADA8",
+            "name": "Muted Text",
+            "cssVar": "--color-muted-foreground"
+          },
+          "accent": {
+            "$value": "#1A1816",
+            "name": "Accent Text",
+            "cssVar": "--color-accent-foreground"
+          },
+          "destructive": {
+            "$value": "#1A1816",
+            "name": "Destructive Text",
+            "cssVar": "--color-destructive-foreground"
+          }
+        }
+      },
+      "border": {
+        "$type": "color",
+        "description": "Border and outline colors",
+        "light": {
+          "default": {
+            "$value": "rgba(43, 43, 43, 0.1)",
+            "name": "Default Border",
+            "cssVar": "--color-border"
+          },
+          "ring": {
+            "$value": "#FF6F61",
+            "name": "Focus Ring",
+            "cssVar": "--color-ring"
+          }
+        },
+        "dark": {
+          "default": {
+            "$value": "rgba(248, 237, 235, 0.12)",
+            "name": "Dark Border",
+            "cssVar": "--color-border"
+          },
+          "ring": {
+            "$value": "#FF8A80",
+            "name": "Dark Focus Ring",
+            "cssVar": "--color-ring"
+          }
+        }
+      },
+      "semantic": {
+        "$type": "color",
+        "description": "Semantic color meanings",
+        "destructive": {
+          "light": {
+            "$value": "#d4183d",
+            "name": "Error Red",
+            "cssVar": "--color-destructive"
+          },
+          "dark": {
+            "$value": "#FF5A52",
+            "name": "Error Red Dark",
+            "cssVar": "--color-destructive"
+          }
+        }
+      },
+      "sidebar": {
+        "$type": "color",
+        "description": "Sidebar specific colors",
+        "light": {
+          "bg": {
+            "$value": "#F8EDEB",
+            "name": "Sidebar Background",
+            "cssVar": "--color-sidebar"
+          },
+          "text": {
+            "$value": "#2B2B2B",
+            "name": "Sidebar Text",
+            "cssVar": "--color-sidebar-foreground"
+          },
+          "primary": {
+            "$value": "#FF6F61",
+            "name": "Sidebar Primary",
+            "cssVar": "--color-sidebar-primary"
+          },
+          "primary-text": {
+            "$value": "#ffffff",
+            "name": "Sidebar Primary Text",
+            "cssVar": "--color-sidebar-primary-foreground"
+          },
+          "accent": {
+            "$value": "#ffffff",
+            "name": "Sidebar Accent",
+            "cssVar": "--color-sidebar-accent"
+          },
+          "accent-text": {
+            "$value": "#2B2B2B",
+            "name": "Sidebar Accent Text",
+            "cssVar": "--color-sidebar-accent-foreground"
+          },
+          "border": {
+            "$value": "rgba(43, 43, 43, 0.08)",
+            "name": "Sidebar Border",
+            "cssVar": "--color-sidebar-border"
+          },
+          "ring": {
+            "$value": "#FF6F61",
+            "name": "Sidebar Ring",
+            "cssVar": "--color-sidebar-ring"
+          }
+        },
+        "dark": {
+          "bg": {
+            "$value": "#1F1D1B",
+            "name": "Dark Sidebar Background",
+            "cssVar": "--color-sidebar"
+          },
+          "text": {
+            "$value": "#FAF9F7",
+            "name": "Dark Sidebar Text",
+            "cssVar": "--color-sidebar-foreground"
+          },
+          "primary": {
+            "$value": "#FF8A80",
+            "name": "Dark Sidebar Primary",
+            "cssVar": "--color-sidebar-primary"
+          },
+          "primary-text": {
+            "$value": "#1A1816",
+            "name": "Dark Sidebar Primary Text",
+            "cssVar": "--color-sidebar-primary-foreground"
+          },
+          "accent": {
+            "$value": "#2D2A28",
+            "name": "Dark Sidebar Accent",
+            "cssVar": "--color-sidebar-accent"
+          },
+          "accent-text": {
+            "$value": "#F8EDEB",
+            "name": "Dark Sidebar Accent Text",
+            "cssVar": "--color-sidebar-accent-foreground"
+          },
+          "border": {
+            "$value": "rgba(248, 237, 235, 0.08)",
+            "name": "Dark Sidebar Border",
+            "cssVar": "--color-sidebar-border"
+          },
+          "ring": {
+            "$value": "#FF8A80",
+            "name": "Dark Sidebar Ring",
+            "cssVar": "--color-sidebar-ring"
+          }
+        }
+      },
+      "chart": {
+        "$type": "color",
+        "description": "Chart and data visualization colors",
+        "light": {
+          "1": {
+            "$value": "#FF6F61",
+            "name": "Coral Pink",
+            "cssVar": "--color-chart-1"
+          },
+          "2": {
+            "$value": "#E6B8C2",
+            "name": "Blush",
+            "cssVar": "--color-chart-2"
+          },
+          "3": {
+            "$value": "#F5CBA7",
+            "name": "Warm Nude",
+            "cssVar": "--color-chart-3"
+          },
+          "4": {
+            "$value": "#FF8A80",
+            "name": "Electric Salmon",
+            "cssVar": "--color-chart-4"
+          },
+          "5": {
+            "$value": "#D4A59A",
+            "name": "Warm Coral",
+            "cssVar": "--color-chart-5"
+          }
+        },
+        "dark": {
+          "1": {
+            "$value": "#FF8A80",
+            "name": "Electric Salmon",
+            "cssVar": "--color-chart-1"
+          },
+          "2": {
+            "$value": "#E6B8C2",
+            "name": "Blush",
+            "cssVar": "--color-chart-2"
+          },
+          "3": {
+            "$value": "#F5CBA7",
+            "name": "Warm Nude",
+            "cssVar": "--color-chart-3"
+          },
+          "4": {
+            "$value": "#FF6F61",
+            "name": "Coral Pink",
+            "cssVar": "--color-chart-4"
+          },
+          "5": {
+            "$value": "#D4A59A",
+            "name": "Warm Coral",
+            "cssVar": "--color-chart-5"
+          }
+        }
+      },
+      "gradient": {
+        "$type": "gradient",
+        "description": "Brand gradient combinations",
+        "light": {
+          "lyra": {
+            "$value": "linear-gradient(135deg, #E6B8C2, #F5CBA7)",
+            "name": "Blush to Warm Nude",
+            "cssVar": "--gradient-start, --gradient-end",
+            "start": {
+              "$value": "#E6B8C2",
+              "cssVar": "--color-gradient-start"
+            },
+            "end": {
+              "$value": "#F5CBA7",
+              "cssVar": "--color-gradient-end"
+            }
+          },
+          "coral": {
+            "$value": "linear-gradient(135deg, #FF6F61, #FF8A80)",
+            "name": "Coral to Salmon",
+            "cssVar": "--coral-gradient-start, --coral-gradient-end",
+            "start": {
+              "$value": "#FF6F61",
+              "cssVar": "--color-coral-gradient-start"
+            },
+            "end": {
+              "$value": "#FF8A80",
+              "cssVar": "--color-coral-gradient-end"
+            }
+          }
+        },
+        "dark": {
+          "lyra": {
+            "$value": "linear-gradient(135deg, #3A3734, #2D2A28)",
+            "name": "Dark Warm Gradient",
+            "cssVar": "--gradient-start, --gradient-end",
+            "start": {
+              "$value": "#3A3734",
+              "cssVar": "--color-gradient-start"
+            },
+            "end": {
+              "$value": "#2D2A28",
+              "cssVar": "--color-gradient-end"
+            }
+          },
+          "coral": {
+            "$value": "linear-gradient(135deg, #FF6F61, #FF8A80)",
+            "name": "Coral to Salmon",
+            "cssVar": "--coral-gradient-start, --coral-gradient-end",
+            "start": {
+              "$value": "#FF6F61",
+              "cssVar": "--color-coral-gradient-start"
+            },
+            "end": {
+              "$value": "#FF8A80",
+              "cssVar": "--color-coral-gradient-end"
+            }
+          }
+        }
+      }
+    },
+    "spacing": {
+      "$type": "dimension",
+      "description": "Spacing scale for layout and components",
+      "0": {
+        "$value": "0px",
+        "cssVar": "0"
+      },
+      "1": {
+        "$value": "0.25rem",
+        "px": "4px",
+        "cssVar": "0.25rem"
+      },
+      "2": {
+        "$value": "0.5rem",
+        "px": "8px",
+        "cssVar": "0.5rem"
+      },
+      "3": {
+        "$value": "0.75rem",
+        "px": "12px",
+        "cssVar": "0.75rem"
+      },
+      "4": {
+        "$value": "1rem",
+        "px": "16px",
+        "cssVar": "1rem"
+      },
+      "5": {
+        "$value": "1.25rem",
+        "px": "20px",
+        "cssVar": "1.25rem"
+      },
+      "6": {
+        "$value": "1.5rem",
+        "px": "24px",
+        "cssVar": "1.5rem"
+      },
+      "8": {
+        "$value": "2rem",
+        "px": "32px",
+        "cssVar": "2rem"
+      },
+      "10": {
+        "$value": "2.5rem",
+        "px": "40px",
+        "cssVar": "2.5rem"
+      },
+      "12": {
+        "$value": "3rem",
+        "px": "48px",
+        "cssVar": "3rem"
+      },
+      "16": {
+        "$value": "4rem",
+        "px": "64px",
+        "cssVar": "4rem"
+      },
+      "20": {
+        "$value": "5rem",
+        "px": "80px",
+        "cssVar": "5rem"
+      },
+      "24": {
+        "$value": "6rem",
+        "px": "96px",
+        "cssVar": "6rem"
+      },
+      "32": {
+        "$value": "8rem",
+        "px": "128px",
+        "cssVar": "8rem"
+      }
+    },
+    "radius": {
+      "$type": "dimension",
+      "description": "Border radius values for rounded elements",
+      "sm": {
+        "$value": "calc(1rem - 4px)",
+        "px": "12px",
+        "cssVar": "--radius-sm"
+      },
+      "md": {
+        "$value": "calc(1rem - 2px)",
+        "px": "14px",
+        "cssVar": "--radius-md"
+      },
+      "lg": {
+        "$value": "1rem",
+        "px": "16px",
+        "cssVar": "--radius-lg"
+      },
+      "xl": {
+        "$value": "calc(1rem + 4px)",
+        "px": "20px",
+        "cssVar": "--radius-xl"
+      },
+      "full": {
+        "$value": "9999px",
+        "cssVar": "9999px"
+      }
+    },
+    "typography": {
+      "fontFamily": {
+        "$type": "fontFamily",
+        "description": "Font family stacks",
+        "heading": {
+          "$value": "'Outfit', 'Satoshi', system-ui, sans-serif",
+          "name": "Headings and Display",
+          "cssVar": "font-family"
+        },
+        "body": {
+          "$value": "'Inter', system-ui, sans-serif",
+          "name": "Body and UI Text",
+          "cssVar": "font-family"
+        }
+      },
+      "fontSize": {
+        "$type": "dimension",
+        "description": "Font size scale (DO NOT use Tailwind classes, these are for reference only)",
+        "xs": {
+          "$value": "0.75rem",
+          "px": "12px",
+          "cssVar": "--text-xs"
+        },
+        "sm": {
+          "$value": "0.875rem",
+          "px": "14px",
+          "cssVar": "--text-sm"
+        },
+        "base": {
+          "$value": "1rem",
+          "px": "16px",
+          "cssVar": "--text-base"
+        },
+        "lg": {
+          "$value": "1.125rem",
+          "px": "18px",
+          "cssVar": "--text-lg"
+        },
+        "xl": {
+          "$value": "1.25rem",
+          "px": "20px",
+          "cssVar": "--text-xl"
+        },
+        "2xl": {
+          "$value": "1.5rem",
+          "px": "24px",
+          "cssVar": "--text-2xl"
+        },
+        "3xl": {
+          "$value": "1.875rem",
+          "px": "30px",
+          "cssVar": "--text-3xl"
+        },
+        "4xl": {
+          "$value": "2.25rem",
+          "px": "36px",
+          "cssVar": "--text-4xl"
+        }
+      },
+      "fontWeight": {
+        "$type": "number",
+        "description": "Font weight scale (DO NOT use Tailwind classes, these are for reference only)",
+        "normal": {
+          "$value": 400,
+          "cssVar": "--font-weight-normal"
+        },
+        "medium": {
+          "$value": 500,
+          "cssVar": "--font-weight-medium"
+        },
+        "semibold": {
+          "$value": 600,
+          "cssVar": "--font-weight-semibold"
+        },
+        "bold": {
+          "$value": 700,
+          "cssVar": "--font-weight-bold"
+        }
+      },
+      "lineHeight": {
+        "$type": "number",
+        "description": "Line height scale (DO NOT use Tailwind classes, these are for reference only)",
+        "tight": {
+          "$value": 1.25,
+          "cssVar": "1.25"
+        },
+        "normal": {
+          "$value": 1.4,
+          "cssVar": "1.4"
+        },
+        "relaxed": {
+          "$value": 1.6,
+          "cssVar": "1.6"
+        },
+        "loose": {
+          "$value": 1.8,
+          "cssVar": "1.8"
+        }
+      },
+      "letterSpacing": {
+        "$type": "dimension",
+        "description": "Letter spacing values",
+        "tighter": {
+          "$value": "-0.05em",
+          "cssVar": "-0.05em"
+        },
+        "tight": {
+          "$value": "-0.025em",
+          "cssVar": "-0.025em"
+        },
+        "normal": {
+          "$value": "0",
+          "cssVar": "0"
+        },
+        "wide": {
+          "$value": "0.025em",
+          "cssVar": "0.025em"
+        },
+        "wider": {
+          "$value": "0.05em",
+          "cssVar": "0.05em"
+        },
+        "widest": {
+          "$value": "0.1em",
+          "cssVar": "0.1em"
+        }
+      }
+    },
+    "shadow": {
+      "$type": "shadow",
+      "description": "Box shadow elevations",
+      "sm": {
+        "$value": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+        "cssVar": "shadow-sm"
+      },
+      "base": {
+        "$value": "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)",
+        "cssVar": "shadow"
+      },
+      "md": {
+        "$value": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)",
+        "cssVar": "shadow-md"
+      },
+      "lg": {
+        "$value": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
+        "cssVar": "shadow-lg"
+      },
+      "xl": {
+        "$value": "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+        "cssVar": "shadow-xl"
+      },
+      "2xl": {
+        "$value": "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+        "cssVar": "shadow-2xl"
+      },
+      "inner": {
+        "$value": "inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)",
+        "cssVar": "shadow-inner"
+      },
+      "none": {
+        "$value": "none",
+        "cssVar": "shadow-none"
+      }
+    },
+    "opacity": {
+      "$type": "number",
+      "description": "Opacity scale",
+      "0": {
+        "$value": 0,
+        "cssVar": "0"
+      },
+      "5": {
+        "$value": 0.05,
+        "cssVar": "0.05"
+      },
+      "10": {
+        "$value": 0.1,
+        "cssVar": "0.1"
+      },
+      "20": {
+        "$value": 0.2,
+        "cssVar": "0.2"
+      },
+      "30": {
+        "$value": 0.3,
+        "cssVar": "0.3"
+      },
+      "40": {
+        "$value": 0.4,
+        "cssVar": "0.4"
+      },
+      "50": {
+        "$value": 0.5,
+        "cssVar": "0.5"
+      },
+      "60": {
+        "$value": 0.6,
+        "cssVar": "0.6"
+      },
+      "70": {
+        "$value": 0.7,
+        "cssVar": "0.7"
+      },
+      "80": {
+        "$value": 0.8,
+        "cssVar": "0.8"
+      },
+      "90": {
+        "$value": 0.9,
+        "cssVar": "0.9"
+      },
+      "100": {
+        "$value": 1,
+        "cssVar": "1"
+      }
+    },
+    "zIndex": {
+      "$type": "number",
+      "description": "Z-index layers for stacking contexts",
+      "dropdown": {
+        "$value": 100,
+        "name": "Dropdown menus",
+        "cssVar": "100"
+      },
+      "modal": {
+        "$value": 50,
+        "name": "Modals, dialogs, top nav",
+        "cssVar": "50"
+      },
+      "sidebar": {
+        "$value": 40,
+        "name": "Sidebar navigation",
+        "cssVar": "40"
+      },
+      "musicPlayer": {
+        "$value": 30,
+        "name": "Fixed music player",
+        "cssVar": "30"
+      },
+      "toast": {
+        "$value": 20,
+        "name": "Toast notifications",
+        "cssVar": "20"
+      },
+      "popover": {
+        "$value": 10,
+        "name": "Popovers, tooltips",
+        "cssVar": "10"
+      },
+      "base": {
+        "$value": 0,
+        "name": "Base layer",
+        "cssVar": "0"
+      }
+    },
+    "transition": {
+      "$type": "duration",
+      "description": "Transition timing values",
+      "duration": {
+        "fast": {
+          "$value": "150ms",
+          "cssVar": "150ms"
+        },
+        "base": {
+          "$value": "200ms",
+          "cssVar": "200ms"
+        },
+        "medium": {
+          "$value": "300ms",
+          "cssVar": "300ms"
+        },
+        "slow": {
+          "$value": "500ms",
+          "cssVar": "500ms"
+        }
+      },
+      "timing": {
+        "ease": {
+          "$value": "ease",
+          "cssVar": "ease"
+        },
+        "ease-in": {
+          "$value": "ease-in",
+          "cssVar": "ease-in"
+        },
+        "ease-out": {
+          "$value": "ease-out",
+          "cssVar": "ease-out"
+        },
+        "ease-in-out": {
+          "$value": "ease-in-out",
+          "cssVar": "ease-in-out"
+        },
+        "linear": {
+          "$value": "linear",
+          "cssVar": "linear"
+        }
+      }
+    },
+    "layout": {
+      "$type": "dimension",
+      "description": "Layout-specific measurements",
+      "topNavHeight": {
+        "mobile": {
+          "$value": "3.5rem",
+          "px": "56px",
+          "cssVar": "3.5rem"
+        },
+        "desktop": {
+          "$value": "4rem",
+          "px": "64px",
+          "cssVar": "4rem"
+        }
+      },
+      "sidebarWidth": {
+        "collapsed": {
+          "$value": "72px",
+          "cssVar": "72px"
+        },
+        "mobile": {
+          "$value": "280px",
+          "cssVar": "280px"
+        },
+        "desktop": {
+          "$value": "240px",
+          "cssVar": "240px"
+        }
+      },
+      "musicPlayerHeight": {
+        "mobile": {
+          "$value": "5rem",
+          "px": "80px",
+          "cssVar": "5rem"
+        },
+        "desktop": {
+          "$value": "6rem",
+          "px": "96px",
+          "cssVar": "6rem"
+        }
+      },
+      "touchTarget": {
+        "min": {
+          "$value": "44px",
+          "name": "Minimum touch target size",
+          "cssVar": "44px"
+        },
+        "comfortable": {
+          "$value": "48px",
+          "name": "Comfortable touch target",
+          "cssVar": "48px"
+        }
+      }
+    },
+    "breakpoint": {
+      "$type": "dimension",
+      "description": "Responsive breakpoints (mobile-first)",
+      "sm": {
+        "$value": "640px",
+        "name": "Small devices",
+        "cssVar": "640px"
+      },
+      "md": {
+        "$value": "768px",
+        "name": "Medium devices (tablets)",
+        "cssVar": "768px"
+      },
+      "lg": {
+        "$value": "1024px",
+        "name": "Large devices (desktops)",
+        "cssVar": "1024px"
+      },
+      "xl": {
+        "$value": "1280px",
+        "name": "Extra large devices",
+        "cssVar": "1280px"
+      },
+      "2xl": {
+        "$value": "1536px",
+        "name": "2X large devices",
+        "cssVar": "1536px"
+      }
+    },
+    "blur": {
+      "$type": "dimension",
+      "description": "Backdrop blur values for frosted glass effects",
+      "sm": {
+        "$value": "4px",
+        "cssVar": "4px"
+      },
+      "base": {
+        "$value": "8px",
+        "cssVar": "8px"
+      },
+      "md": {
+        "$value": "12px",
+        "cssVar": "12px"
+      },
+      "lg": {
+        "$value": "16px",
+        "cssVar": "16px"
+      },
+      "xl": {
+        "$value": "20px",
+        "name": "Used in TopNavBar frosted glass",
+        "cssVar": "20px"
+      },
+      "2xl": {
+        "$value": "40px",
+        "cssVar": "40px"
+      }
+    }
+  },
+  "metadata": {
+    "notes": [
+      "Typography tokens (fontSize, fontWeight, lineHeight) should NOT be used via Tailwind classes",
+      "Typography is controlled via HTML elements in globals.css @layer base",
+      "All colors support both light and dark theme variants",
+      "Gradient tokens can be used via utility classes .bg-gradient-lyra and .bg-gradient-coral",
+      "Z-index values are architectural - use exact values for consistency",
+      "Touch targets follow WCAG 2.1 Level AAA guidelines (min 44x44px)",
+      "Breakpoints follow mobile-first approach",
+      "All CSS variable names can be used directly in Tailwind classes via arbitrary values"
+    ],
+    "usage": {
+      "cssVariables": "Use var(--color-primary) in CSS files",
+      "tailwind": "Use bg-primary or text-primary in className",
+      "arbitraryValues": "Use bg-[var(--custom-color)] for custom CSS vars",
+      "gradients": "Use .bg-gradient-lyra or .bg-gradient-coral utility classes"
+    }
+  }
+}
