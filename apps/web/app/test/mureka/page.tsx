@@ -3,6 +3,9 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SongBuilder, SongLibrary } from "@lyra/ui/dist/components";
+import { MusicPlayerResponsive } from "@lyra/ui/dist/components";
+import { Music } from "lucide-react";
 
 export const dynamic = 'force-dynamic';
 
@@ -44,45 +47,53 @@ export default function MurekaTestPage() {
   
   const [user, setUser] = useState<any>(null);
   const [organizationId, setOrganizationId] = useState<string>("");
-  const [model, setModel] = useState<string>(DEFAULTS.model);
-  const [n, setN] = useState<number>(DEFAULTS.n);
-  const [prompt, setPrompt] = useState<string>(DEFAULTS.prompt);
-  const [lyrics, setLyrics] = useState<string>(DEFAULTS.lyrics);
-  const [referenceId, setReferenceId] = useState<string>(DEFAULTS.reference_id);
-  const [vocalId, setVocalId] = useState<string>(DEFAULTS.vocal_id);
-  const [melodyId, setMelodyId] = useState<string>(DEFAULTS.melody_id);
-  const [stream, setStream] = useState<boolean>(DEFAULTS.stream);
-
-  const [genItems, setGenItems] = useState<GeneratedItem[]>([]);
   const [dbItems, setDbItems] = useState<DbItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [log, setLog] = useState<string>("");
-  const [elapsed, setElapsed] = useState<number>(0);
   const [error, setError] = useState<string>("");
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Music Player state
+  const [currentTrack, setCurrentTrack] = useState<any>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
-  // Load from localStorage first, then get user and auto-fill org if needed
+  // Transform DB items to SongLibrary format
+  const transformDbItemForSongLibrary = (dbItem: DbItem) => {
+    // Format duration from seconds to MM:SS format
+    const formatDuration = (seconds: number | null) => {
+      if (!seconds) return '0:00';
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
+
+    // Extract metadata
+    const meta = dbItem.meta || {};
+    const genre = meta.genre || 'Electronic';
+    const mood = meta.mood || 'Upbeat';
+    const provider = meta.provider || 'mureka';
+
+    return {
+      id: dbItem.id,
+      title: dbItem.title || 'Untitled Track',
+      artist: meta.artist || 'User',
+      duration: formatDuration(dbItem.duration_seconds),
+      genre: genre,
+      mood: mood,
+      provider: provider as 'Mureka' | 'OpenAI' | 'Anthropic' | 'Google AI' | 'Stability AI' | 'Suno' | 'MusicGen',
+      playlistName: 'Generated Tracks',
+      createdAt: dbItem.created_at,
+      plays: meta.play_count || 0,
+      liked: meta.user_liked || false
+    };
+  };
+
+  // Load user and organization
   useEffect(() => {
-    const ls = (k: string, def: any) => { const v = localStorage.getItem(k); return v ?? def; };
-    const savedOrgId = ls("mureka_org", "");
-    setOrganizationId(savedOrgId);
-    setModel(ls("mureka_model", DEFAULTS.model));
-    setN(Number(ls("mureka_n", String(DEFAULTS.n))));
-    setPrompt(ls("mureka_prompt", DEFAULTS.prompt));
-    setLyrics(ls("mureka_lyrics", DEFAULTS.lyrics));
-    setReferenceId(ls("mureka_reference_id", DEFAULTS.reference_id));
-    setVocalId(ls("mureka_vocal_id", DEFAULTS.vocal_id));
-    setMelodyId(ls("mureka_melody_id", DEFAULTS.melody_id));
-    setStream(ls("mureka_stream", String(DEFAULTS.stream)) === "true");
-    
-    // After loading from localStorage, fetch user and their org
     async function getUserAndOrg() {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       
-      if (user && !savedOrgId) {
-        // Only auto-fill if localStorage doesn't have an org ID
+      if (user) {
         const { data: memberships } = await supabase
           .from('user_memberships')
           .select('organization_id')
@@ -91,7 +102,6 @@ export default function MurekaTestPage() {
         
         if (memberships && memberships.length > 0) {
           const userOrgId = memberships[0].organization_id;
-          console.log(`[mureka] auto-filling user org: ${userOrgId}`);
           setOrganizationId(userOrgId);
         }
       }
@@ -107,33 +117,77 @@ export default function MurekaTestPage() {
       refreshFromDb();
     }
   }, [organizationId]);
-  useEffect(() => { localStorage.setItem("mureka_org", organizationId); }, [organizationId]);
-  useEffect(() => { localStorage.setItem("mureka_model", model); }, [model]);
-  useEffect(() => { localStorage.setItem("mureka_n", String(n)); }, [n]);
-  useEffect(() => { localStorage.setItem("mureka_prompt", prompt); }, [prompt]);
-  useEffect(() => { localStorage.setItem("mureka_lyrics", lyrics); }, [lyrics]);
-  useEffect(() => { localStorage.setItem("mureka_reference_id", referenceId); }, [referenceId]);
-  useEffect(() => { localStorage.setItem("mureka_vocal_id", vocalId); }, [vocalId]);
-  useEffect(() => { localStorage.setItem("mureka_melody_id", melodyId); }, [melodyId]);
-  useEffect(() => { localStorage.setItem("mureka_stream", String(stream)); }, [stream]);
 
-  const anyRefControl = useMemo(() => !!(referenceId || vocalId || melodyId), [referenceId, vocalId, melodyId]);
-  const promptDisabled = anyRefControl;
-  const refsDisabled = !!prompt;
-  const streamDisabled = model === "mureka-o1";
-  const promptCount = prompt.length;
-  const lyricsCount = lyrics.length;
+  // Handle generation completion
+  const handleGenerationComplete = async (generatedTracks: any[]) => {
+    console.log('Generation completed, refreshing tracks from DB');
+    await refreshFromDb();
+  };
 
-  useEffect(() => {
-    if (loading) {
-      const started = Date.now();
-      timerRef.current = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 250);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = null;
+  // Transform DB item to MusicPlayer format
+  const transformDbItemForMusicPlayer = (dbItem: DbItem) => {
+    return {
+      id: dbItem.id,
+      title: dbItem.title || 'Untitled Track',
+      artist: 'User', // Default artist
+      album: 'Generated Tracks',
+      coverArt: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop', // Default cover
+      duration: dbItem.duration_seconds || 180, // Default 3 minutes
+      audioUrl: dbItem.mp3?.url || null, // Audio URL for playback
+    };
+  };
+
+  // Handle track play from SongLibrary
+  const handleTrackPlay = async (track: any) => {
+    // If track is null, it means we should pause
+    if (!track) {
+      setCurrentTrack(null);
+      setIsPlaying(false);
+      return;
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [loading]);
+
+    // Find the corresponding DB item
+    const dbItem = dbItems.find(item => item.id === track.id);
+    if (dbItem) {
+      try {
+        // Generate fresh signed URLs for audio playback
+        const response = await fetch(`/api/tracks/list?organizationId=${organizationId}&_t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          }
+        });
+        const data = await response.json();
+        
+        if (data.ok && data.items) {
+          // Find the updated track with fresh URLs
+          const updatedTrack = data.items.find((t: any) => t.id === track.id);
+          if (updatedTrack) {
+            const musicPlayerTrack = {
+              id: updatedTrack.id,
+              title: updatedTrack.title || 'Untitled Track',
+              artist: 'User',
+              album: 'Generated Tracks',
+              coverArt: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop',
+              duration: updatedTrack.duration_seconds || 180,
+              audioUrl: updatedTrack.mp3?.url || null,
+            };
+            setCurrentTrack(musicPlayerTrack);
+            console.log('Playing track with fresh URL:', musicPlayerTrack);
+          }
+        }
+      } catch (error) {
+        console.error('Error refreshing track URL:', error);
+        // Fallback to original track data
+        const musicPlayerTrack = transformDbItemForMusicPlayer(dbItem);
+        setCurrentTrack(musicPlayerTrack);
+        console.log('Playing track with original URL:', musicPlayerTrack);
+      }
+    }
+  };
+
+
+
 
   async function refreshFromDb() {
     const orgIdToUse = organizationId || process.env.NEXT_PUBLIC_TEST_ORG_ID;
@@ -142,11 +196,17 @@ export default function MurekaTestPage() {
       setError('No organization ID set. Please enter one in the form or set TEST_ORG_ID env var.');
       return;
     }
-    const url = `/api/tracks/list?organizationId=${encodeURIComponent(orgIdToUse)}`;
-    const res = await fetch(url);
+    const url = `/api/tracks/list?organizationId=${encodeURIComponent(orgIdToUse)}&_t=${Date.now()}`;
+    const res = await fetch(url, {
+      cache: 'no-store', // Prevent caching
+      headers: {
+        'Cache-Control': 'no-cache',
+      }
+    });
     const json = await res.json();
     if (json.ok) {
       setDbItems(json.items || []);
+      console.log('[mureka] refreshed tracks from DB with fresh URLs');
     } else {
       console.error('[mureka] error fetching tracks:', json.error);
       setError(json.error || 'Failed to fetch tracks');
@@ -158,49 +218,6 @@ export default function MurekaTestPage() {
     router.push('/login');
   }
 
-  async function run(e?: React.FormEvent) {
-    e?.preventDefault();
-    setError("");
-
-    if (!organizationId && !process.env.NEXT_PUBLIC_TEST_ORG_ID) {
-      // purely client-side warning; server also checks
-    }
-    if (!lyrics || lyrics.trim().length === 0) { setError("Lyrics is required."); return; }
-    if (lyrics.length > 3000) { setError("Lyrics exceeds 3000 characters."); return; }
-    if (prompt && prompt.length > 1024) { setError("Prompt exceeds 1024 characters."); return; }
-    const selected = [prompt && "prompt", referenceId && "reference_id", vocalId && "vocal_id", melodyId && "melody_id"].filter(Boolean);
-    if (selected.length > 1) { setError(`Only one of {prompt, reference_id, vocal_id, melody_id} can be provided. You set: ${selected.join(", ")}`); return; }
-    if (stream && model === "mureka-o1") { setError("Stream mode is not supported with model 'mureka-o1'."); return; }
-
-    setLoading(true);
-    setGenItems([]);
-    setLog("");
-    setElapsed(0);
-
-    const res = await fetch("/api/mureka-test", {
-      method: "POST",
-      body: JSON.stringify({
-        organizationId: organizationId || undefined,
-        model,
-        n,
-        prompt: prompt || undefined,
-        lyrics,
-        reference_id: referenceId || undefined,
-        vocal_id: vocalId || undefined,
-        melody_id: melodyId || undefined,
-        stream: Boolean(stream),
-      }),
-      headers: { "Content-Type": "application/json" },
-    });
-    const json = await res.json();
-    setLog(JSON.stringify(json, null, 2));
-    if (!json.ok && json.error) setError(json.error);
-    if (json.ok) {
-      setGenItems(json.items || []);
-      await refreshFromDb(); // auto-refresh from DB after insert
-    }
-    setLoading(false);
-  }
 
   return (
     <div className="min-h-[90vh] flex flex-col items-center gap-6 p-6">
@@ -222,144 +239,64 @@ export default function MurekaTestPage() {
         </div>
       </div>
 
-      <form onSubmit={run} className="w-full max-w-3xl grid gap-4 rounded-lg border border-white/15 p-4 bg-black/30">
-        <label className="grid gap-1">
-          <span className="text-sm opacity-80">organizationId (optional if TEST_ORG_ID env is set)</span>
-          <input
-            className="px-3 py-2 rounded bg-black/40 border border-white/15 outline-none focus:border-white/30"
-            value={organizationId}
-            onChange={(e) => setOrganizationId(e.target.value)}
-            placeholder="00000000-0000-0000-0000-000000000000"
+      {/* SongBuilder Component */}
+      <SongBuilder onGenerationComplete={handleGenerationComplete} />
+
+      {/* Generated Tracks */}
+      <div className="w-full max-w-6xl">
+        <h2 className="text-2xl font-semibold mb-6">Generated Tracks</h2>
+        {dbItems.length > 0 ? (
+          <SongLibrary 
+            songs={dbItems.map(transformDbItemForSongLibrary)}
+            onPlayTrack={handleTrackPlay}
+            currentTrack={currentTrack}
+            isPlaying={isPlaying}
           />
-        </label>
-
-        {/* Model / n / stream */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="grid gap-1">
-            <span className="text-sm opacity-80">Model</span>
-            <select
-              className="px-3 py-2 rounded bg-black/40 border border-white/15 outline-none focus:border-white/30"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-            >
-              {MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </label>
-          <label className="grid gap-1">
-            <span className="text-sm opacity-80">n (1–3)</span>
-            <select
-              className="px-3 py-2 rounded bg-black/40 border border-white/15 outline-none focus:border-white/30"
-              value={n}
-              onChange={(e) => setN(Number(e.target.value))}
-            >
-              {[1,2,3].map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </label>
-          <label className="grid gap-1">
-            <span className="text-sm opacity-80">Stream (no for mureka-o1)</span>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" checked={stream} onChange={(e) => setStream(e.target.checked)} disabled={model === "mureka-o1"} />
-              <span className={`text-sm ${model === "mureka-o1" ? "opacity-50" : "opacity-80"}`}>Enable streaming phase</span>
-            </div>
-          </label>
-        </div>
-
-        {/* Prompt vs refs */}
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="grid gap-1">
-            <span className="text-sm opacity-80">Prompt (max 1024)</span>
-            <textarea
-              className="px-3 py-2 rounded bg-black/40 border border-white/15 outline-none focus:border-white/30 min-h-[72px]"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g., warm lofi jazz, 90 BPM, cozy coffeehouse, instrumental"
-              disabled={!!(referenceId || vocalId || melodyId)}
-              maxLength={1024}
-            />
-            <div className="text-xs opacity-60">{prompt.length}/1024 { (referenceId||vocalId||melodyId) && " • disabled (control selected on right)"}</div>
-          </label>
-
-          <div className="grid gap-3">
-            <label className="grid gap-1">
-              <span className="text-sm opacity-80">reference_id</span>
-              <input className="px-3 py-2 rounded bg-black/40 border border-white/15 outline-none focus:border-white/30" value={referenceId} onChange={(e) => setReferenceId(e.target.value)} placeholder="file id (reference)" disabled={!!prompt} />
-            </label>
-            <label className="grid gap-1">
-              <span className="text-sm opacity-80">vocal_id</span>
-              <input className="px-3 py-2 rounded bg-black/40 border border-white/15 outline-none focus:border-white/30" value={vocalId} onChange={(e) => setVocalId(e.target.value)} placeholder="file id (vocal)" disabled={!!prompt} />
-            </label>
-            <label className="grid gap-1">
-              <span className="text-sm opacity-80">melody_id</span>
-              <input className="px-3 py-2 rounded bg-black/40 border border-white/15 outline-none focus:border-white/30" value={melodyId} onChange={(e) => setMelodyId(e.target.value)} placeholder="file id (melody)" disabled={!!prompt} />
-            </label>
-            {!!prompt && <div className="text-xs opacity-60">Disabled because a prompt is provided.</div>}
+        ) : (
+          <div className="text-center py-12 text-muted-foreground">
+            <Music className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>No tracks generated yet. Use the Song Builder above to create some music!</p>
           </div>
-        </div>
-
-        {/* Lyrics */}
-        <label className="grid gap-1">
-          <span className="text-sm opacity-80">Lyrics (required, max 3000)</span>
-          <textarea className="px-3 py-2 rounded bg-black/40 border border-white/15 outline-none focus:border-white/30 min-h-[72px]" value={lyrics} onChange={(e) => setLyrics(e.target.value)} placeholder='[Instrumental only]' maxLength={3000} />
-          <div className="text-xs opacity-60">{lyrics.length}/3000</div>
-        </label>
-
-        {/* Actions */}
-        <div className="flex items-center gap-3 pt-1">
-          <button type="submit" disabled={loading} className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20">
-            {loading ? "Working…" : "Generate → Upload → Save"}
-          </button>
-          <button type="button" onClick={refreshFromDb} className="px-3 py-2 rounded-lg border border-white/20 hover:bg-white/10">
-            Refresh from DB
-          </button>
-          {loading && (
-            <div className="flex items-center gap-3 text-sm opacity-80">
-              <div className="h-4 w-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
-              <span>Generating & uploading… {elapsed}s</span>
-            </div>
-          )}
-          {!!error && <div className="text-sm text-red-400">{error}</div>}
-        </div>
-      </form>
-
-      {/* Generated (this run) */}
-      <div className="w-full max-w-3xl">
-        <h2 className="text-lg opacity-80 mb-2">This run (not from DB)</h2>
-        <div className="grid gap-6">
-          {genItems.map((it, i) => (
-            <div key={`${i}-${it.db?.id ?? "x"}`} className="rounded-lg border border-white/15 p-4 bg-black/30">
-              <div className="text-sm opacity-80 mb-2">
-                Choice #{i + 1} {it.db?.id ? <span className="opacity-60"> • saved id: {it.db.id}</span> : null}
-              </div>
-              {it.r2Mp3?.url ? <audio controls className="w-full" src={it.r2Mp3.url} /> : <div className="text-xs opacity-70">No MP3 available</div>}
-            </div>
-          ))}
-        </div>
+        )}
       </div>
 
-      {/* From DB */}
-      <div className="w-full max-w-3xl mt-6">
-        <h2 className="text-lg opacity-80 mb-2">Recent from DB</h2>
-        <div className="grid gap-6">
-          {dbItems.map((it) => (
-            <div key={it.id} className="rounded-lg border border-white/15 p-4 bg-black/30">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm opacity-80">
-                  {it.title || `Track ${it.id.slice(0,8)}…`}
-                </div>
-                <div className="text-xs opacity-60">{new Date(it.created_at).toLocaleString()}</div>
-              </div>
-              {it.mp3?.url ? <audio controls className="w-full" src={it.mp3.url} /> : <div className="text-xs opacity-70">No MP3</div>}
-              <div className="mt-2 text-xs opacity-80 break-all">
-                {it.mp3 && <div><b>MP3:</b> {it.mp3.key}</div>}
-                {it.flac && <div><b>FLAC:</b> <a className="underline" href={it.flac.url} target="_blank" rel="noreferrer">{it.flac.key}</a></div>}
-                {it.meta?.request?.prompt && <div className="opacity-70"><b>Prompt:</b> {it.meta.request.prompt}</div>}
-                {it.meta?.request?.lyrics && <div className="opacity-70"><b>Lyrics:</b> {it.meta.request.lyrics}</div>}
-                {it.meta?.mureka_model && <div className="opacity-70"><b>Model:</b> {it.meta.mureka_model}</div>}
-              </div>
+      {/* Music Player */}
+      {currentTrack && (
+        <div className="w-full max-w-6xl mt-8">
+          {/* Debug info */}
+          <div className="mb-4 p-4 bg-muted rounded-lg text-sm">
+            <h3 className="font-semibold mb-2">Currently Playing:</h3>
+            <p><strong>Title:</strong> {currentTrack.title}</p>
+            <p><strong>Artist:</strong> {currentTrack.artist}</p>
+            <p><strong>Audio URL:</strong> {currentTrack.audioUrl ? 'Available' : 'Not available'}</p>
+            <p><strong>Status:</strong> Ready to play</p>
+            <p><strong>Duration:</strong> {currentTrack.duration}s</p>
+          </div>
+          
+          {/* Fixed bottom music player wrapper - same as DashboardLayout */}
+          <div className="fixed bottom-0 right-0 z-40 h-12 md:h-[88px] transition-all duration-300 ease-in-out left-0">
+            {/* Elevation shadow for depth */}
+            <div className="absolute inset-0 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.3)]" />
+            
+            {/* Gradient background with slight blur */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blush via-secondary to-warm-nude backdrop-blur-sm" />
+            
+            {/* Player content */}
+            <div className="relative h-full">
+              <MusicPlayerResponsive
+                currentTrack={currentTrack}
+                onGoToPlaylist={(playlist: any) => {
+                  console.log('Go to playlist:', playlist);
+                }}
+                onPlayStateChange={(playing) => {
+                  setIsPlaying(playing);
+                }}
+              />
             </div>
-          ))}
+          </div>
+
         </div>
-      </div>
+      )}
 
       {/* Raw log */}
       <pre className="w-full max-w-3xl text-xs bg-black/40 p-4 rounded-lg overflow-auto">

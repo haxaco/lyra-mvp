@@ -1,3 +1,6 @@
+/* Import Google Fonts for Lyra Brand Typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap');
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -332,6 +335,3 @@
 html {
   font-size: var(--font-size);
 }
-
-/* Import Google Fonts for Lyra Brand Typography */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap');

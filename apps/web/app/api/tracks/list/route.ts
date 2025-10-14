@@ -91,7 +91,13 @@ export async function GET(request: Request) {
 
     console.log(`[tracks/list] returning ${items.length} items`);
 
-    return NextResponse.json({ ok: true, items });
+    return NextResponse.json({ ok: true, items }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message || String(e) }, { status: 500 });
   }

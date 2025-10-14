@@ -15,7 +15,7 @@ export async function GET() {
 
     const { data, error } = await supa
       .from("playlists")
-      .select("id, name, created_at")
+      .select("id, name, created_at, track_count, total_duration_seconds")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw error;
@@ -51,6 +51,15 @@ export async function POST(req: NextRequest) {
     if (items.length) {
       const { error: iErr } = await supa.from("playlist_items").insert(items);
       if (iErr) throw iErr;
+      
+      // Update playlist stats with real calculated values
+      const { error: statsErr } = await supa.rpc('update_playlist_stats', {
+        playlist_uuid: playlist.id
+      });
+      if (statsErr) {
+        console.warn('Failed to update playlist stats:', statsErr);
+        // Don't fail the request, just log the warning
+      }
     }
 
     return NextResponse.json({ ok:true, playlistId: playlist.id });

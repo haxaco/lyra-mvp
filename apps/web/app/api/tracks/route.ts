@@ -9,7 +9,7 @@ export async function GET() {
 
     const { data, error } = await supa
       .from("tracks")
-      .select("id, title, duration_seconds, r2_key, flac_r2_key, created_at, meta")
+      .select("id, title, duration_seconds, r2_key, flac_r2_key, created_at, meta, artist, mood, play_count, user_liked, genre, provider_id")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw error;
@@ -22,7 +22,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { supa, orgId } = await getOrgClientAndId();
+    const { supa, orgId, userId } = await getOrgClientAndId();
     if (!orgId) return NextResponse.json({ ok:false, error:"No org in session" }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
@@ -35,6 +35,11 @@ export async function POST(req: NextRequest) {
     // Use admin client for write to bypass RLS if needed
     const admin = supabaseAdmin();
     
+    // Get user info for default artist name
+    const { data: userData } = await supa.auth.getUser();
+    const userEmail = userData?.user?.email || 'Unknown User';
+    const defaultArtist = body.artist || userEmail.split('@')[0]; // Use username part of email
+    
     const insertData: any = {
       organization_id: orgId,
       title: body.title,
@@ -46,12 +51,17 @@ export async function POST(req: NextRequest) {
       job_id: body.job_id || null,
       watermark: body.watermark ?? false,
       meta: body.meta || null,
+      artist: defaultArtist,
+      mood: body.mood || null,
+      provider_id: body.provider_id || null,
+      play_count: body.play_count || 0,
+      user_liked: body.user_liked ?? false,
     };
 
     const { data, error } = await admin
       .from("tracks")
       .insert([insertData])
-      .select("id, title, duration_seconds, r2_key, created_at")
+      .select("id, title, duration_seconds, r2_key, created_at, artist, mood, play_count, user_liked, genre, provider_id")
       .single();
     
     if (error) throw error;

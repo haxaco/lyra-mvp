@@ -10,19 +10,122 @@ import {
   useCreatePlaylist,
   useCreateJob,
 } from "@lyra/sdk";
-import { Button, Card, CardHeader, CardTitle, CardContent } from "@lyra/ui";
-import { useState } from "react";
+import { Button, Card, CardHeader, CardTitle, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@lyra/ui";
+import { PlaylistCard, SongLibrary } from "@lyra/ui/dist/components";
+import React, { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 export default function SDKTestPage() {
   const [trackTitle, setTrackTitle] = useState("");
   const [playlistName, setPlaylistName] = useState("");
   const [jobPrompt, setJobPrompt] = useState("Energetic electronic music");
+  const [isRawDataOpen, setIsRawDataOpen] = useState(false);
+
+  // Transform SDK track data to SongLibrary format
+  const transformTrackForSongLibrary = (sdkTrack: any, playlistMap: Record<string, string> = {}) => {
+    // Format duration from seconds to MM:SS format
+    const formatDuration = (seconds: number) => {
+      if (!seconds) return '0:00';
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
+
+    // Extract metadata or use database fields
+    const meta = sdkTrack.meta || {};
+    const genre = sdkTrack.genre || meta.genre || 'Electronic';
+    const mood = sdkTrack.mood || meta.mood || 'Upbeat';
+    const provider = sdkTrack.provider_id || meta.provider || 'Mureka';
+    const artist = sdkTrack.artist || 'User'; // Fallback to 'User' if no artist set
+
+    // Map provider names to SongLibrary format
+    const providerMap: Record<string, string> = {
+      'mureka': 'Mureka',
+      'suno': 'Suno', 
+      'musicgen': 'MusicGen',
+      'openai': 'OpenAI',
+      'anthropic': 'Anthropic',
+      'google': 'Google AI',
+      'stability': 'Stability AI'
+    };
+    const mappedProvider = providerMap[provider.toLowerCase()] || 'Mureka';
+
+    // Get playlist name from map or use default
+    const playlistName = playlistMap[sdkTrack.id] || 'Unknown Playlist';
+
+    return {
+      id: sdkTrack.id,
+      title: sdkTrack.title || 'Untitled Track',
+      artist: artist,
+      duration: formatDuration(sdkTrack.duration_seconds || 0),
+      genre: genre,
+      mood: mood,
+      provider: mappedProvider as 'OpenAI' | 'Anthropic' | 'Google AI' | 'Stability AI' | 'Mureka' | 'Suno' | 'MusicGen',
+      playlistName: playlistName,
+      createdAt: sdkTrack.created_at,
+      plays: sdkTrack.play_count || 0, // Use real play count from database
+      liked: sdkTrack.user_liked || false // Use real liked status from database
+    };
+  };
+
+  // Transform SDK playlist data to PlaylistCard format
+  const transformPlaylistForCard = (sdkPlaylist: any) => {
+    // Format duration from seconds to human readable
+    const formatDuration = (seconds: number) => {
+      if (!seconds || seconds === 0) return '0m';
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      }
+      return `${minutes}m`;
+    };
+
+    // Use real data from database columns
+    const trackCount = sdkPlaylist.track_count || 0;
+    const durationSeconds = sdkPlaylist.total_duration_seconds || 0;
+    const duration = formatDuration(durationSeconds);
+    
+    // Dynamic tags based on actual data
+    const tags = trackCount > 0 
+      ? ['AI Generated', 'Custom', 'Background Music'] 
+      : ['AI Generated', 'Empty Playlist'];
+    
+    return {
+      id: sdkPlaylist.id,
+      title: sdkPlaylist.name,
+      description: `AI-generated playlist created on ${new Date(sdkPlaylist.created_at).toLocaleDateString()}`,
+      duration: duration,
+      trackCount: trackCount,
+      tags: tags,
+      imageUrl: undefined, // No image URL from SDK
+      onPlay: () => {
+        console.log("Playing playlist:", sdkPlaylist);
+        alert(`Playing playlist: ${sdkPlaylist.name} (${trackCount} tracks)`);
+      },
+      onViewDetails: () => {
+        console.log("Viewing playlist details:", sdkPlaylist);
+        alert(`Viewing details for: ${sdkPlaylist.name} - ${trackCount} tracks, ${duration} total`);
+      }
+    };
+  };
 
   // Query hooks
   const whoami = useWhoAmI();
   const tracks = useTracks();
   const playlists = usePlaylists();
   const jobs = useJobs();
+
+  // Create playlist mapping for tracks
+  const playlistMap = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    playlists.data?.items?.forEach(playlist => {
+      // For now, we'll use a simple mapping. In a real app, you'd need to
+      // query which tracks belong to which playlists via playlist_items table
+      // This is a placeholder that could be enhanced with a separate API call
+    });
+    return map;
+  }, [playlists.data?.items]);
 
   // Mutation hooks
   const createTrack = useCreateTrack();
@@ -133,39 +236,53 @@ export default function SDKTestPage() {
           </p>
         </div>
 
-        {/* JSON Debug Sections */}
-        <section className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground">Raw Data (JSON)</h2>
-          
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-xl font-semibold mb-2">Who Am I</h3>
-              <pre className="bg-card border border-border rounded-lg p-4 overflow-x-auto text-sm">
-                {JSON.stringify(whoami.data, null, 2)}
-              </pre>
-            </div>
+            {/* JSON Debug Sections */}
+            <Collapsible open={isRawDataOpen} onOpenChange={setIsRawDataOpen}>
+              <CollapsibleTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-between mb-4"
+                >
+                  <h2 className="text-2xl font-semibold text-foreground">Raw Data (JSON)</h2>
+                  {isRawDataOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+              
+              <CollapsibleContent>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">Who Am I</h3>
+                    <pre className="bg-card border border-border rounded-lg p-4 overflow-x-auto text-sm">
+                      {JSON.stringify(whoami.data, null, 2)}
+                    </pre>
+                  </div>
 
-            <div>
-              <h3 className="text-xl font-semibold mb-2">Tracks</h3>
-              <pre className="bg-card border border-border rounded-lg p-4 overflow-x-auto text-sm max-h-64 overflow-y-auto">
-                {JSON.stringify(tracks.data, null, 2)}
-              </pre>
-              <p className="text-sm text-muted-foreground mt-2">
-                {tracks.data?.items?.length || 0} tracks found
-              </p>
-            </div>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">Tracks</h3>
+                    <pre className="bg-card border border-border rounded-lg p-4 overflow-x-auto text-sm max-h-64 overflow-y-auto">
+                      {JSON.stringify(tracks.data, null, 2)}
+                    </pre>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {tracks.data?.items?.length || 0} tracks found
+                    </p>
+                  </div>
 
-            <div>
-              <h3 className="text-xl font-semibold mb-2">Playlists</h3>
-              <pre className="bg-card border border-border rounded-lg p-4 overflow-x-auto text-sm max-h-64 overflow-y-auto">
-                {JSON.stringify(playlists.data, null, 2)}
-              </pre>
-              <p className="text-sm text-muted-foreground mt-2">
-                {playlists.data?.items?.length || 0} playlists found
-              </p>
-            </div>
-          </div>
-        </section>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">Playlists</h3>
+                    <pre className="bg-card border border-border rounded-lg p-4 overflow-x-auto text-sm max-h-64 overflow-y-auto">
+                      {JSON.stringify(playlists.data, null, 2)}
+                    </pre>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {playlists.data?.items?.length || 0} playlists found
+                    </p>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
         {/* Interactive UI Sections */}
         <section className="space-y-6 mt-12">
@@ -186,17 +303,17 @@ export default function SDKTestPage() {
             </CardContent>
           </Card>
 
-          {/* Tracks Management */}
+          {/* Enhanced Tracks Management with SongLibrary */}
           <Card>
             <CardHeader>
-              <CardTitle>🎵 Tracks (useTracks, useCreateTrack, useDeleteTrack)</CardTitle>
+              <CardTitle>🎵 Tracks (useTracks + SongLibrary Component)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Create Track Form */}
-              <div className="flex gap-2">
+              {/* Quick Actions */}
+              <div className="flex gap-2 mb-4">
                 <input
                   type="text"
-                  placeholder="Track title..."
+                  placeholder="Quick create track..."
                   value={trackTitle}
                   onChange={(e) => setTrackTitle(e.target.value)}
                   className="flex-1 px-3 py-2 border border-border rounded-md bg-background text-foreground"
@@ -206,36 +323,55 @@ export default function SDKTestPage() {
                   onClick={handleCreateTrack}
                   disabled={createTrack.isPending}
                 >
-                  {createTrack.isPending ? "Creating..." : "Create Track"}
+                  {createTrack.isPending ? "Creating..." : "Create"}
                 </Button>
                 <Button variant="outline" onClick={() => tracks.refetch()}>
                   Refresh
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground mb-4">
+                Quick create above, or use the full SongLibrary interface below
+              </p>
+              <div className="text-xs text-muted-foreground mb-2">
+                Debug: {tracks.data?.items?.length || 0} tracks loaded
+              </div>
 
-              {/* Tracks List */}
-              {tracks.data?.items?.length ? (
-                <div className="space-y-2">
-                  <p className="font-semibold">{tracks.data.items.length} tracks:</p>
-                  <ul className="list-disc pl-6 space-y-1">
-                    {tracks.data.items.slice(0, 10).map((track) => (
-                      <li key={track.id} className="flex items-center justify-between">
-                        <span>{track.title || track.id}</span>
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          onClick={() => handleDeleteTrack(track.id)}
-                          disabled={deleteTrack.isPending}
-                          className="ml-4"
-                        >
-                          Delete
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
+              {/* SongLibrary Component with Real Data */}
+              {tracks.data?.items ? (
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <SongLibrary
+                    songs={tracks.data.items.map(track => {
+                      try {
+                        return transformTrackForSongLibrary(track, playlistMap);
+                      } catch (error) {
+                        console.error('Error transforming track:', track, error);
+                        return {
+                          id: track.id,
+                          title: track.title || 'Unknown Track',
+                          artist: (track as any).artist || 'User',
+                          duration: '0:00',
+                          genre: 'Electronic',
+                          mood: 'Upbeat',
+                          provider: 'Mureka' as 'OpenAI' | 'Anthropic' | 'Google AI' | 'Stability AI' | 'Mureka' | 'Suno' | 'MusicGen',
+                          playlistName: 'Unknown Playlist',
+                          createdAt: track.created_at || new Date().toISOString(),
+                          plays: 0,
+                          liked: false
+                        };
+                      }
+                    })}
+                    onPlayTrack={(track) => {
+                      console.log("Playing track:", track);
+                      alert(`Playing: ${track.title} by ${track.artist} from ${track.playlistName}`);
+                    }}
+                  />
                 </div>
               ) : (
-                <p className="text-muted-foreground">No tracks found</p>
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">
+                    {tracks.isLoading ? "Loading tracks..." : "No tracks found"}
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -270,18 +406,32 @@ export default function SDKTestPage() {
                 Will add first 3 tracks to the new playlist
               </p>
 
-              {/* Playlists List */}
+              {/* Playlist Cards Grid */}
               {playlists.data?.items?.length ? (
-                <div className="space-y-2">
-                  <p className="font-semibold">{playlists.data.items.length} playlists:</p>
-                  <ul className="list-disc pl-6">
-                    {playlists.data.items.map((p) => (
-                      <li key={p.id}>{p.name}</li>
+                <div>
+                  <p className="font-semibold mb-4">{playlists.data.items.length} playlists:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {playlists.data.items.map((playlist) => (
+                      <PlaylistCard
+                        key={playlist.id}
+                        {...transformPlaylistForCard(playlist)}
+                      />
                     ))}
-                  </ul>
+                  </div>
                 </div>
               ) : (
-                <p className="text-muted-foreground">No playlists found</p>
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                    </svg>
+                  </div>
+                  <h3 className="text-foreground mb-2">No playlists found</h3>
+                  <p className="text-muted-foreground mb-4">Create your first playlist to get started</p>
+                  <Button onClick={handleCreatePlaylist}>
+                    Create Playlist
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
