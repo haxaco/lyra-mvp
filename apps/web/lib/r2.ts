@@ -7,15 +7,22 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from './env';
 
-// Initialize R2 client with validated environment variables
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: env.R2_ACCESS_KEY_ID,
-    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
-  },
-});
+// Lazy initialization of R2 client to avoid build-time environment variable access
+let r2Client: S3Client | null = null;
+
+function getR2Client(): S3Client {
+  if (!r2Client) {
+    r2Client = new S3Client({
+      region: "auto",
+      endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: env.R2_ACCESS_KEY_ID,
+        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+      },
+    });
+  }
+  return r2Client;
+}
 
 /**
  * Upload an object to R2 storage
@@ -41,7 +48,7 @@ export async function putObject({
       ContentType: contentType,
     });
     
-    await r2.send(cmd);
+    await getR2Client().send(cmd);
   } catch (error) {
     throw new Error(`Failed to upload to R2: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -59,7 +66,7 @@ export async function getObject({ key }: { key: string }): Promise<ReadableStrea
       Key: key,
     });
     
-    const response = await r2.send(cmd);
+    const response = await getR2Client().send(cmd);
     
     if (!response.Body) {
       throw new Error('No body in R2 response');
@@ -115,7 +122,7 @@ export async function createPresignedGetUrl(key: string, expiresInSec = 3600): P
       Key: key,
     });
     
-    return await getSignedUrl(r2, cmd, { expiresIn: expiresInSec });
+    return await getSignedUrl(getR2Client(), cmd, { expiresIn: expiresInSec });
   } catch (error) {
     throw new Error(`Failed to create presigned URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
