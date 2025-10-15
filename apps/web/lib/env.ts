@@ -31,26 +31,27 @@ export function requireEnvMasked(name: string): string {
 }
 
 /**
- * Centralized environment configuration with validation
+ * Centralized environment configuration with lazy validation
+ * Validation only happens when env is accessed, not at module load time
  */
 export const env = {
   // Supabase
-  SUPABASE_URL: requireEnv('NEXT_PUBLIC_SUPABASE_URL'),
-  SUPABASE_ANON_KEY: requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
-  SUPABASE_SERVICE_ROLE_KEY: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
+  get SUPABASE_URL() { return requireEnv('NEXT_PUBLIC_SUPABASE_URL'); },
+  get SUPABASE_ANON_KEY() { return requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'); },
+  get SUPABASE_SERVICE_ROLE_KEY() { return requireEnv('SUPABASE_SERVICE_ROLE_KEY'); },
   
   // R2 (Cloudflare)
-  R2_ACCOUNT_ID: requireEnv('R2_ACCOUNT_ID'),
-  R2_BUCKET_NAME: requireEnv('R2_BUCKET_NAME'),
-  R2_ACCESS_KEY_ID: requireEnv('R2_ACCESS_KEY_ID'),
-  R2_SECRET_ACCESS_KEY: requireEnv('R2_SECRET_ACCESS_KEY'),
+  get R2_ACCOUNT_ID() { return requireEnv('R2_ACCOUNT_ID'); },
+  get R2_BUCKET_NAME() { return requireEnv('R2_BUCKET_NAME'); },
+  get R2_ACCESS_KEY_ID() { return requireEnv('R2_ACCESS_KEY_ID'); },
+  get R2_SECRET_ACCESS_KEY() { return requireEnv('R2_SECRET_ACCESS_KEY'); },
   
   // Mureka API
-  MUREKA_API_KEY: requireEnv('MUREKA_API_KEY'),
+  get MUREKA_API_KEY() { return requireEnv('MUREKA_API_KEY'); },
   
   // Optional debug overrides
-  DEBUG_USER_ID: process.env.DEBUG_USER_ID,
-  DEBUG_ORG_ID: process.env.DEBUG_ORG_ID,
+  get DEBUG_USER_ID() { return process.env.DEBUG_USER_ID; },
+  get DEBUG_ORG_ID() { return process.env.DEBUG_ORG_ID; },
 } as const;
 
 /**
@@ -60,13 +61,23 @@ export const isProd = process.env.NODE_ENV === 'production';
 export const isDev = process.env.NODE_ENV === 'development';
 
 /**
- * Validates all required environment variables at module load time
+ * Validates all required environment variables when called
  * Throws descriptive errors with masked sensitive values
+ * This is now called lazily when env properties are accessed
  */
-function validateEnv() {
+export function validateAllEnv() {
   try {
-    // This will throw if any required env vars are missing
-    const _ = env;
+    // Access all required env vars to trigger validation
+    const _ = {
+      SUPABASE_URL: env.SUPABASE_URL,
+      SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY,
+      R2_ACCOUNT_ID: env.R2_ACCOUNT_ID,
+      R2_BUCKET_NAME: env.R2_BUCKET_NAME,
+      R2_ACCESS_KEY_ID: env.R2_ACCESS_KEY_ID,
+      R2_SECRET_ACCESS_KEY: env.R2_SECRET_ACCESS_KEY,
+      MUREKA_API_KEY: env.MUREKA_API_KEY,
+    };
   } catch (error) {
     if (error instanceof Error) {
       // Mask sensitive values in error messages
@@ -81,6 +92,3 @@ function validateEnv() {
     throw error;
   }
 }
-
-// Validate environment on module load
-validateEnv();
