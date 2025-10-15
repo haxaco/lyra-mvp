@@ -23,7 +23,7 @@ export const Support: React.FC = () => {
     {
       id: '1',
       question: 'How does AI music generation work?',
-      answer: 'Lyra uses advanced AI models from providers like Mubert, Suno, and MusicGen to create unique, royalty-free music tailored to your brand. Simply select your desired mood, energy level, and genre, and our AI will generate a custom playlist in minutes.'
+      answer: 'Lyra uses advanced AI models from providers like Mureka, Suno, and MusicGen to create unique, royalty-free music tailored to your brand. Simply select your desired mood, energy level, and genre, and our AI will generate a custom playlist in minutes.'
     },
     {
       id: '2',
