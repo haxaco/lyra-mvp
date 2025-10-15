@@ -1,10 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
+import { env } from './env';
 
 export function supabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  if (!url || !key) throw new Error("Supabase admin env vars missing");
-  return createClient(url, key, {
+  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -14,7 +12,7 @@ export function supabaseAdmin() {
     },
     global: {
       headers: {
-        'apikey': key,
+        'apikey': env.SUPABASE_SERVICE_ROLE_KEY,
       },
     },
   });
