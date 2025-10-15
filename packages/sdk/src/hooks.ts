@@ -156,7 +156,7 @@ export function useJobs() {
   });
 }
 
-export function useJob(id: string) {
+export function useJobQuery(id: string) {
   return useQuery({
     queryKey: qk.job(id),
     queryFn: () => apiFetch<ApiOk<{ job: any }>>(`/api/jobs/${id}`),

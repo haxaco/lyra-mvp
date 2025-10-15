@@ -24,7 +24,7 @@ interface Track {
   title: string;
   duration: string;
   energyLevel: number;
-  provider: 'Mubert' | 'MusicGen' | 'Suno';
+  provider: 'Mureka' | 'MusicGen' | 'Suno';
   isLiked: boolean;
   isPlaying: boolean;
 }
@@ -59,7 +59,7 @@ const mockPlaylist: PlaylistData = {
       title: 'Gentle Coffee House Ambience',
       duration: '4:23',
       energyLevel: 5,
-      provider: 'Mubert',
+      provider: 'Mureka',
       isLiked: true,
       isPlaying: true
     },
@@ -86,7 +86,7 @@ const mockPlaylist: PlaylistData = {
       title: 'Smooth Café Instrumental',
       duration: '4:56',
       energyLevel: 5,
-      provider: 'Mubert',
+      provider: 'Mureka',
       isLiked: false,
       isPlaying: false
     },
@@ -119,7 +119,7 @@ interface PlaylistViewerProps {
 export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passedPlaylist, onPlayTrack }) => {
   // Generate mock tracks if not provided
   const generateMockTracks = (count: number): Track[] => {
-    const providers: Array<'Mubert' | 'MusicGen' | 'Suno'> = ['Mubert', 'MusicGen', 'Suno'];
+    const providers: Array<'Mureka' | 'MusicGen' | 'Suno'> = ['Mureka', 'MusicGen', 'Suno'];
     const trackTitles = [
       'Gentle Coffee House Ambience',
       'Warm Morning Jazz Flow',
@@ -176,7 +176,7 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passed
 
   const getProviderColor = (provider: string) => {
     switch (provider) {
-      case 'Mubert': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+      case 'Mureka': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
       case 'Suno': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
       case 'MusicGen': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
       default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300';

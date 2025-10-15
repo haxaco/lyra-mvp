@@ -61,7 +61,7 @@ create table if not exists public.brand_profiles (
 
 -- ── Provider registry
 create table if not exists public.provider_compliance (
-  id text primary key,               -- 'mubert','suno','musicgen'
+  id text primary key,               -- 'mureka','suno','musicgen'
   display_name text not null,
   allowed_for_b2b boolean not null default false,
   allowed_public_performance boolean not null default false,

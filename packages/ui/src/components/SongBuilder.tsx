@@ -8,7 +8,9 @@ import { Badge } from '../primitives/badge';
 import { Textarea } from '../primitives/textarea';
 import { Switch } from '../primitives/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../primitives/select';
-import { Wand2, Music, AlertCircle } from 'lucide-react';
+import { Progress } from '../primitives/progress';
+import { Wand2, Music, AlertCircle, CheckCircle, XCircle, Clock, Play } from 'lucide-react';
+import { LyraJobs, useJob } from '@lyra/sdk';
 
 interface SongBuilderProps {
   onGenerationComplete?: (tracks: any[]) => void;
@@ -36,88 +38,123 @@ export const SongBuilder: React.FC<SongBuilderProps> = ({ onGenerationComplete }
   const [vocalId, setVocalId] = useState<string>("");
   const [melodyId, setMelodyId] = useState<string>("");
 
-  // State
-  const [isGenerating, setIsGenerating] = useState(false);
+  // Job state
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
-  const [elapsed, setElapsed] = useState<number>(0);
+  
+  // SDK
+  const jobsClient = React.useRef(new LyraJobs());
+  
+  // Use job hook for real-time updates
+  const { 
+    job, 
+    status, 
+    progress, 
+    children, 
+    events, 
+    isTerminal, 
+    error: jobError, 
+    isLoading 
+  } = useJob(currentJobId || '', { enableSSE: true });
 
-  const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Start/stop timer for generation
-  const startTimer = () => {
-    setElapsed(0);
-    timerRef.current = setInterval(() => {
-      setElapsed(prev => prev + 1);
-    }, 1000);
-  };
-
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
+  // Handle job completion
   React.useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, []);
+    if (isTerminal && job && onGenerationComplete) {
+      console.log('[SongBuilder] Job completed, calling onGenerationComplete:', {
+        jobId: job.id,
+        status: job.status,
+        isTerminal,
+        hasCallback: !!onGenerationComplete
+      });
+      // Job completed, notify parent component
+      onGenerationComplete([job]);
+    }
+  }, [isTerminal, job, onGenerationComplete]);
+
+  // Handle job errors
+  React.useEffect(() => {
+    if (jobError) {
+      setError(jobError);
+    }
+  }, [jobError]);
 
   const generateSongs = async () => {
-    if (isGenerating) return;
+    if (currentJobId) return; // Already generating
     
-    setIsGenerating(true);
     setError("");
-    startTimer();
+    setCurrentJobId(null);
 
     try {
-      const response = await fetch('/api/jobs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
+      const params = {
+        lyrics,
+        model: model as any,
+        prompt: prompt.trim() || undefined,
+        reference_id: referenceId.trim() || undefined,
+        vocal_id: vocalId.trim() || undefined,
+        melody_id: melodyId.trim() || undefined,
+        stream: model !== "mureka-o1" ? stream : false,
+      };
+
+      let result;
+      if (trackCount === 1) {
+        // Single track
+        result = await jobsClient.current.createTrackJob(params);
+      } else {
+        // Playlist (multiple tracks)
+        result = await jobsClient.current.createPlaylistJob({
+          ...params,
           n: trackCount,
-          prompt: prompt.trim() || undefined,
-          lyrics,
-          reference_id: referenceId.trim() || undefined,
-          vocal_id: vocalId.trim() || undefined,
-          melody_id: melodyId.trim() || undefined,
-          stream: model !== "mureka-o1" ? stream : false,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Generation failed');
+        });
       }
 
-      // Call completion callback with generated tracks
-      if (onGenerationComplete && result.items) {
-        onGenerationComplete(result.items);
-      }
+      setCurrentJobId(result.job_id);
+      console.log(`[SongBuilder] Job created: ${result.job_id}`);
 
     } catch (err: any) {
       setError(err.message || 'An error occurred during generation');
       console.error('Generation error:', err);
-    } finally {
-      setIsGenerating(false);
-      stopTimer();
     }
   };
 
   // Validation
+  const isGenerating = currentJobId && !isTerminal;
   const canGenerate = !isGenerating && (
     prompt.trim() || referenceId.trim() || vocalId.trim() || melodyId.trim()
   );
 
   const isPromptMode = prompt.trim().length > 0;
   const hasReferences = referenceId.trim() || vocalId.trim() || melodyId.trim();
+
+  // Get status display
+  const getStatusIcon = () => {
+    switch (status) {
+      case 'queued':
+        return <Clock className="w-4 h-4" />;
+      case 'running':
+        return <Play className="w-4 h-4" />;
+      case 'succeeded':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'failed':
+        return <XCircle className="w-4 h-4" />;
+      default:
+        return <Music className="w-4 h-4" />;
+    }
+  };
+
+  const getStatusColor = () => {
+    switch (status) {
+      case 'queued':
+        return 'text-yellow-600';
+      case 'running':
+        return 'text-blue-600';
+      case 'succeeded':
+        return 'text-green-600';
+      case 'failed':
+        return 'text-red-600';
+      default:
+        return 'text-gray-600';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -295,16 +332,72 @@ export const SongBuilder: React.FC<SongBuilderProps> = ({ onGenerationComplete }
               {isGenerating ? 'Generating...' : 'Generate Songs'}
             </Button>
 
-            {/* Status */}
-            {(isGenerating || error) && (
+            {/* Progress Status */}
+            {(isGenerating || error || currentJobId) && (
               <Card>
-                <CardContent className="pt-6">
-                  {isGenerating && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      <span>Generating & uploading… {elapsed}s</span>
+                <CardContent className="pt-6 space-y-4">
+                  {/* Job Status */}
+                  {currentJobId && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`${getStatusColor()}`}>
+                          {getStatusIcon()}
+                        </span>
+                        <span className="text-sm font-medium">
+                          {jobsClient.current.getStatusMessage(status)}
+                        </span>
+                        {progress > 0 && (
+                          <Badge variant="outline" className="ml-auto">
+                            {progress}%
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      {progress > 0 && (
+                        <Progress value={progress} className="w-full" />
+                      )}
+                      
+                      {/* Job Details */}
+                      {job && (
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <div>Job ID: {job.id}</div>
+                          {job.item_count > 1 && (
+                            <div>
+                              Progress: {job.completed_count}/{job.item_count} tracks
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
+                  
+                  {/* Children Progress (for playlists) */}
+                  {children && children.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Track Progress:</div>
+                      <div className="space-y-1">
+                        {children.map((child, index) => (
+                          <div key={child.id} className="flex items-center gap-2 text-xs">
+                            <span className="w-6 text-muted-foreground">#{index + 1}</span>
+                            <span className={`${getStatusColor()}`}>
+                              {getStatusIcon()}
+                            </span>
+                            <span className="flex-1">
+                              {jobsClient.current.getStatusMessage(child.status)}
+                            </span>
+                            {child.progress_pct > 0 && (
+                              <Badge variant="outline" className="text-xs">
+                                {child.progress_pct}%
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Error Display */}
                   {error && (
                     <div className="flex items-center gap-2 text-sm text-destructive">
                       <AlertCircle className="w-4 h-4" />

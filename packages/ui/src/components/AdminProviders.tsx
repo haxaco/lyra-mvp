@@ -7,8 +7,8 @@ import { Settings, CheckCircle2, XCircle, AlertTriangle, ExternalLink } from 'lu
 export const AdminProviders: React.FC = () => {
   const [providers, setProviders] = useState([
     {
-      id: 'mubert',
-      name: 'Mubert',
+      id: 'mureka',
+      name: 'Mureka',
       description: 'AI-generated royalty-free music',
       enabled: true,
       publicPerformance: true,

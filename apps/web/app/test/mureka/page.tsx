@@ -2,7 +2,7 @@
 
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { SongBuilder, SongLibrary } from "@lyra/ui/dist/components";
 import { MusicPlayerResponsive } from "@lyra/ui/dist/components";
 import { Music } from "lucide-react";
@@ -58,11 +58,12 @@ export default function MurekaTestPage() {
 
   // Transform DB items to SongLibrary format
   const transformDbItemForSongLibrary = (dbItem: DbItem) => {
-    // Format duration from seconds to MM:SS format
-    const formatDuration = (seconds: number | null) => {
-      if (!seconds) return '0:00';
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = seconds % 60;
+    // Format duration from milliseconds to MM:SS format
+    const formatDuration = (milliseconds: number | null) => {
+      if (!milliseconds) return '0:00';
+      const totalSeconds = Math.floor(milliseconds / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const remainingSeconds = totalSeconds % 60;
       return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     };
 
@@ -110,19 +111,7 @@ export default function MurekaTestPage() {
     getUserAndOrg();
   }, [supabase]);
   
-  // Auto-refresh tracks when organizationId becomes available
-  useEffect(() => {
-    if (organizationId) {
-      console.log(`[mureka] organizationId set to ${organizationId}, refreshing tracks`);
-      refreshFromDb();
-    }
-  }, [organizationId]);
 
-  // Handle generation completion
-  const handleGenerationComplete = async (generatedTracks: any[]) => {
-    console.log('Generation completed, refreshing tracks from DB');
-    await refreshFromDb();
-  };
 
   // Transform DB item to MusicPlayer format
   const transformDbItemForMusicPlayer = (dbItem: DbItem) => {
@@ -189,7 +178,7 @@ export default function MurekaTestPage() {
 
 
 
-  async function refreshFromDb() {
+  const refreshFromDb = useCallback(async () => {
     const orgIdToUse = organizationId || process.env.NEXT_PUBLIC_TEST_ORG_ID;
     if (!orgIdToUse) {
       console.error('[mureka] no organization ID available for tracks/list');
@@ -211,7 +200,26 @@ export default function MurekaTestPage() {
       console.error('[mureka] error fetching tracks:', json.error);
       setError(json.error || 'Failed to fetch tracks');
     }
-  }
+  }, [organizationId]);
+
+  // Auto-refresh tracks when organizationId becomes available
+  useEffect(() => {
+    if (organizationId) {
+      console.log(`[mureka] organizationId set to ${organizationId}, refreshing tracks`);
+      refreshFromDb();
+    }
+  }, [organizationId, refreshFromDb]);
+
+  // Handle generation completion
+  const handleGenerationComplete = useCallback(async (generatedTracks: any[]) => {
+    console.log('[mureka] handleGenerationComplete called with:', {
+      trackCount: generatedTracks?.length,
+      jobId: generatedTracks?.[0]?.id,
+      status: generatedTracks?.[0]?.status
+    });
+    console.log('Generation completed, refreshing tracks from DB');
+    await refreshFromDb();
+  }, [refreshFromDb]);
 
   async function signOut() {
     await supabase.auth.signOut();

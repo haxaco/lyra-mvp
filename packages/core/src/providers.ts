@@ -12,7 +12,7 @@ export type GenerateResult = {
 };
 
 export interface MusicProvider {
-  id: 'mubert' | 'suno' | 'musicgen';
+  id: 'mureka' | 'suno' | 'musicgen';
   enabled(): Promise<boolean>;
   allowedForB2B(): Promise<boolean>;
   generate(params: GenerateParams): Promise<GenerateResult>;
