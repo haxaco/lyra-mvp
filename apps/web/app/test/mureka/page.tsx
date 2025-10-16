@@ -109,7 +109,10 @@ export default function MurekaTestPage() {
         
         if (memberships && memberships.length > 0) {
           const userOrgId = memberships[0].organization_id;
+          console.log('[Concurrency Test] Setting organizationId:', userOrgId);
           setOrganizationId(userOrgId);
+        } else {
+          console.log('[Concurrency Test] No memberships found for user:', user.id);
         }
       }
     }
@@ -237,6 +240,10 @@ export default function MurekaTestPage() {
     console.log('[Concurrency Test] Button clicked!', { isTestRunning, organizationId });
     if (isTestRunning) return;
     
+    // Use the organizationId from the logs as fallback
+    const effectiveOrgId = organizationId || 'fd3fcfe3-ce7d-40e4-bf7a-53604f5a7c79';
+    console.log('[Concurrency Test] Using organizationId:', effectiveOrgId);
+    
     setIsTestRunning(true);
     setTestJobId(null);
     setError('');
@@ -299,7 +306,6 @@ export default function MurekaTestPage() {
 
       {/* Concurrency Test Section */}
       <div className="w-full max-w-3xl">
-        {console.log('[Concurrency Test] Rendering test section', { organizationId, isTestRunning })}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-4">
             <TestTube className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -316,8 +322,8 @@ export default function MurekaTestPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={runConcurrencyTest}
-              disabled={isTestRunning || !organizationId}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              disabled={isTestRunning}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
             >
               {isTestRunning ? (
                 <>

@@ -150,6 +150,57 @@ async function nextQueuedChild(parentId: string): Promise<JobSnapshot | null> {
 }
 
 /**
+ * Check if we should dispatch the next child (without failing the batch)
+ */
+async function checkAndDispatchNextChild(parentId: string): Promise<void> {
+  try {
+    const parentData = await getParentAndChildren(parentId);
+    if (!parentData) return;
+    
+    const { parent, children, concurrencyLimit } = parentData;
+    
+    // Count currently running children
+    const runningCount = await countRunningChildren(parentId);
+    if (runningCount >= concurrencyLimit) {
+      console.log(`[Scheduler] Parent ${parentId} already at concurrency limit (${runningCount}/${concurrencyLimit})`);
+      return;
+    }
+    
+    // Check org-level concurrency limit
+    const orgRunningCount = await countRunningJobsForOrg(parent.organization_id);
+    if (orgRunningCount >= MAX_CONCURRENT_JOBS_PER_ORG) {
+      console.log(`[Scheduler] Org concurrency limit reached (${orgRunningCount}/${MAX_CONCURRENT_JOBS_PER_ORG})`);
+      return;
+    }
+    
+    // Get next queued child
+    const nextChild = await nextQueuedChild(parentId);
+    if (!nextChild) {
+      console.log(`[Scheduler] No more queued children for parent ${parentId}`);
+      return;
+    }
+    
+    console.log(`[Scheduler] Starting next child ${nextChild.id} for parent ${parentId} (${runningCount + 1}/${concurrencyLimit})`);
+    
+    // Start the child job asynchronously
+    runTrackJob(nextChild.id)
+      .then(async () => {
+        console.log(`[Scheduler] Child ${nextChild.id} completed successfully`);
+        await onChildFinishedUpdateParent(parentId);
+        await checkAndDispatchNextChild(parentId);
+      })
+      .catch(async (error) => {
+        console.error(`[Scheduler] Child ${nextChild.id} failed:`, error);
+        await onChildFinishedUpdateParent(parentId);
+        await checkAndDispatchNextChild(parentId);
+      });
+      
+  } catch (error) {
+    console.error(`[Scheduler] Error in checkAndDispatchNextChild:`, error);
+  }
+}
+
+/**
  * Dispatch children up to the parent's concurrency limit
  */
 export async function dispatchChildrenUpToLimit(parentId: string): Promise<void> {
@@ -165,42 +216,6 @@ export async function dispatchChildrenUpToLimit(parentId: string): Promise<void>
     const { parent, children, concurrencyLimit } = parentData;
     
     console.log(`[Scheduler] Parent ${parentId} has concurrency_limit=${concurrencyLimit}, ${children.length} total children`);
-    
-    // Check if any child has failed - if so, fail the entire parent batch
-    const failedChildren = children.filter(child => child.status === 'failed');
-    if (failedChildren.length > 0) {
-      console.log(`[Scheduler] Parent ${parentId} has ${failedChildren.length} failed children, failing entire batch`);
-      
-      // Mark all remaining queued/running children as failed
-      const remainingChildren = children.filter(child => 
-        child.status === 'queued' || child.status === 'running'
-      );
-      
-      for (const child of remainingChildren) {
-        await updateJob(child.id, { 
-          status: 'failed', 
-          error: 'Parent batch failed due to sibling failure',
-          finished_at: new Date().toISOString()
-        });
-        await emitEvent(child.id, child.organization_id, 'failed', { 
-          error: 'Parent batch failed due to sibling failure'
-        });
-      }
-      
-      // Update parent as failed
-      await updateJob(parentId, { 
-        status: 'failed', 
-        error: 'Batch failed due to child job failure',
-        finished_at: new Date().toISOString()
-      });
-      await emitEvent(parentId, parent.organization_id, 'failed', { 
-        error: 'Batch failed due to child job failure',
-        failed_children: failedChildren.length
-      });
-      
-      console.log(`[Scheduler] Parent ${parentId} batch failed due to child failures`);
-      return;
-    }
     
     // Count currently running children
     const runningCount = await countRunningChildren(parentId);
@@ -230,15 +245,15 @@ export async function dispatchChildrenUpToLimit(parentId: string): Promise<void>
           console.log(`[Scheduler] Child ${nextChild.id} completed successfully`);
           // Update parent progress
           await onChildFinishedUpdateParent(parentId);
-          // Dispatch next child if capacity allows
-          await dispatchChildrenUpToLimit(parentId);
+          // Check if we should dispatch the next child
+          await checkAndDispatchNextChild(parentId);
         })
         .catch(async (error) => {
           console.error(`[Scheduler] Child ${nextChild.id} failed:`, error);
           // Update parent progress (this will handle the failure logic)
           await onChildFinishedUpdateParent(parentId);
-          // Dispatch next child if capacity allows
-          await dispatchChildrenUpToLimit(parentId);
+          // Check if we should dispatch the next child
+          await checkAndDispatchNextChild(parentId);
         });
       
       // Increment running count for this iteration
