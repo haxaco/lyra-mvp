@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { SongBuilder, SongLibrary } from "@lyra/ui/dist/components";
 import { MusicPlayerResponsive } from "@lyra/ui/dist/components";
-import { Music } from "lucide-react";
+import { Music, TestTube, Clock, Zap } from "lucide-react";
+import { LyraJobs } from "@lyra/sdk";
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,11 @@ export default function MurekaTestPage() {
   // Music Player state
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Test state
+  const [isTestRunning, setIsTestRunning] = useState(false);
+  const [testJobId, setTestJobId] = useState<string | null>(null);
+  const jobsClient = useRef(new LyraJobs());
 
   // Transform DB items to SongLibrary format
   const transformDbItemForSongLibrary = (dbItem: DbItem) => {
@@ -226,6 +232,46 @@ export default function MurekaTestPage() {
     router.push('/login');
   }
 
+  // Test function for concurrency functionality
+  const runConcurrencyTest = async () => {
+    if (isTestRunning) return;
+    
+    setIsTestRunning(true);
+    setTestJobId(null);
+    setError('');
+
+    try {
+      console.log('[Concurrency Test] Starting test with 3 different songs...');
+      
+      // Create a playlist with 3 distinct songs to test sequential execution
+      const result = await jobsClient.current.createPlaylistJob({
+        lyrics: "[Instrumental only]",
+        model: "auto",
+        n: 3, // 3 tracks
+        concurrency: 1, // Sequential execution (default)
+        prompt: "Create a diverse 3-track playlist with distinct musical styles: Track 1 - Upbeat electronic dance music with synthesizers and driving bass, Track 2 - Smooth jazz with saxophone and piano, Track 3 - Acoustic folk with guitar and harmonica",
+        stream: false,
+      });
+
+      setTestJobId(result.job_id);
+      console.log('[Concurrency Test] Job created:', result.job_id, {
+        concurrency_limit: result.concurrency_limit,
+        message: result.message
+      });
+
+      // Refresh tracks after a short delay to see the job in progress
+      setTimeout(() => {
+        refreshFromDb();
+      }, 2000);
+
+    } catch (err: any) {
+      console.error('[Concurrency Test] Error:', err);
+      setError(`Test failed: ${err.message}`);
+    } finally {
+      setIsTestRunning(false);
+    }
+  };
+
 
   return (
     <div className="min-h-[90vh] flex flex-col items-center gap-6 p-6">
@@ -249,6 +295,60 @@ export default function MurekaTestPage() {
 
       {/* SongBuilder Component */}
       <SongBuilder onGenerationComplete={handleGenerationComplete} />
+
+      {/* Concurrency Test Section */}
+      <div className="w-full max-w-3xl">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <TestTube className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+              Concurrency Test
+            </h3>
+          </div>
+          
+          <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
+            Test the new sequential execution feature by creating 3 distinct songs in a single playlist. 
+            This will verify that tracks are generated one at a time (concurrency=1).
+          </p>
+          
+          <div className="flex items-center gap-4">
+            <button
+              onClick={runConcurrencyTest}
+              disabled={isTestRunning || !organizationId}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+            >
+              {isTestRunning ? (
+                <>
+                  <Clock className="h-4 w-4 animate-spin" />
+                  Running Test...
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4" />
+                  Run Concurrency Test
+                </>
+              )}
+            </button>
+            
+            {testJobId && (
+              <div className="text-sm text-blue-600 dark:text-blue-400">
+                Job ID: <code className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">{testJobId.substring(0, 8)}...</code>
+              </div>
+            )}
+          </div>
+          
+          {error && (
+            <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded text-red-700 dark:text-red-300 text-sm">
+              {error}
+            </div>
+          )}
+          
+          <div className="mt-4 text-xs text-blue-600 dark:text-blue-400">
+            <strong>What to expect:</strong> You should see 3 tracks appear one by one in the "Generated Tracks" section below, 
+            demonstrating sequential execution. Check the browser console for detailed logging.
+          </div>
+        </div>
+      </div>
 
       {/* Generated Tracks */}
       <div className="w-full max-w-6xl">
