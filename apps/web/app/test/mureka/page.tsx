@@ -234,6 +234,7 @@ export default function MurekaTestPage() {
 
   // Test function for concurrency functionality
   const runConcurrencyTest = async () => {
+    console.log('[Concurrency Test] Button clicked!', { isTestRunning, organizationId });
     if (isTestRunning) return;
     
     setIsTestRunning(true);
@@ -298,6 +299,7 @@ export default function MurekaTestPage() {
 
       {/* Concurrency Test Section */}
       <div className="w-full max-w-3xl">
+        {console.log('[Concurrency Test] Rendering test section', { organizationId, isTestRunning })}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-4">
             <TestTube className="h-5 w-5 text-blue-600 dark:text-blue-400" />
