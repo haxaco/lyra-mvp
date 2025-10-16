@@ -323,7 +323,7 @@ export default function MurekaTestPage() {
             <button
               onClick={runConcurrencyTest}
               disabled={isTestRunning}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-accent)] disabled:bg-gray-400 disabled:cursor-not-allowed text-[var(--color-primary-foreground)] rounded-lg transition-colors font-medium"
             >
               {isTestRunning ? (
                 <>
