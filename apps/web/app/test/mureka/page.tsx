@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { SongBuilder, SongLibrary } from "@lyra/ui/dist/components";
 import { MusicPlayerResponsive } from "@lyra/ui/dist/components";
-import { Music, TestTube, Clock, Zap } from "lucide-react";
+import { Music, TestTube, Clock, Zap, Trash2 } from "lucide-react";
 import { LyraJobs } from "@lyra/sdk";
 
 export const dynamic = 'force-dynamic';
@@ -336,6 +336,28 @@ export default function MurekaTestPage() {
                   Run Concurrency Test
                 </>
               )}
+            </button>
+            
+            <button
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/cleanup-jobs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ organizationId: 'fd3fcfe3-ce7d-40e4-bf7a-53604f5a7c79' })
+                  });
+                  const result = await response.json();
+                  console.log('Cleanup result:', result);
+                  alert(`Jobs cleaned up! Status counts: ${JSON.stringify(result.statusCounts)}`);
+                } catch (error) {
+                  console.error('Cleanup failed:', error);
+                  alert('Cleanup failed');
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
+            >
+              <Trash2 className="h-4 w-4" />
+              Cleanup Stuck Jobs
             </button>
             
             {testJobId && (
