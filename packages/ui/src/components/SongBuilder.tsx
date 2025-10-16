@@ -27,6 +27,7 @@ export const SongBuilder: React.FC<SongBuilderProps> = ({ onGenerationComplete }
   // Basic settings
   const [model, setModel] = useState<string>("auto");
   const [trackCount, setTrackCount] = useState<number>(2);
+  const [concurrency, setConcurrency] = useState<number>(1); // Default to sequential execution
   const [stream, setStream] = useState<boolean>(false);
 
   // Content inputs
@@ -104,11 +105,17 @@ export const SongBuilder: React.FC<SongBuilderProps> = ({ onGenerationComplete }
         result = await jobsClient.current.createPlaylistJob({
           ...params,
           n: trackCount,
+          concurrency: concurrency,
         });
       }
 
       setCurrentJobId(result.job_id);
-      console.log(`[SongBuilder] Job created: ${result.job_id}`);
+      console.log(`[SongBuilder] Job created: ${result.job_id}`, {
+        trackCount,
+        concurrency: trackCount > 1 ? concurrency : 'N/A (single track)',
+        model,
+        type: trackCount > 1 ? 'playlist' : 'single track'
+      });
 
     } catch (err: any) {
       setError(err.message || 'An error occurred during generation');
@@ -213,6 +220,36 @@ export const SongBuilder: React.FC<SongBuilderProps> = ({ onGenerationComplete }
                     <span>3</span>
                   </div>
                 </div>
+
+                {/* Concurrency Control - only show for playlists */}
+                {trackCount > 1 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Concurrency (Tracks at Once)</Label>
+                      <span className="text-sm text-muted-foreground">
+                        {concurrency === 1 ? 'Sequential' : `${concurrency} parallel`}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[concurrency]}
+                      onValueChange={(value) => setConcurrency(value[0])}
+                      min={1}
+                      max={3}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>1 (Sequential)</span>
+                      <span>3 (Parallel)</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {concurrency === 1 
+                        ? 'Generate one track at a time (recommended for stability)'
+                        : `Generate up to ${concurrency} tracks simultaneously`
+                      }
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
@@ -425,6 +462,14 @@ export const SongBuilder: React.FC<SongBuilderProps> = ({ onGenerationComplete }
                   <span className="text-sm text-muted-foreground">Track Count:</span>
                   <Badge variant="outline">{trackCount}</Badge>
                 </div>
+                {trackCount > 1 && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Concurrency:</span>
+                    <Badge variant="outline">
+                      {concurrency === 1 ? 'Sequential' : `${concurrency} parallel`}
+                    </Badge>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Streaming:</span>
                   <Badge variant="outline">{stream ? 'Enabled' : 'Disabled'}</Badge>

@@ -6,8 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserAndOrg } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/db';
-import { emitEvent } from '@/lib/jobs/runner';
-import { startJob } from '@/lib/jobs/runner';
+import { emitEvent, dispatchChildrenUpToLimit } from '@/lib/jobs/runner';
 import { UnauthorizedError } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
@@ -19,7 +18,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     
     // Validate required fields
-    const { lyrics, model = 'auto', n = 2, prompt, reference_id, vocal_id, melody_id, stream = false } = body;
+    const { lyrics, model = 'auto', n = 2, prompt, reference_id, vocal_id, melody_id, stream = false, concurrency } = body;
     
     if (!lyrics) {
       return NextResponse.json(
@@ -30,6 +29,13 @@ export async function POST(request: NextRequest) {
     
     // Validate n parameter (1-10 tracks for playlists)
     const trackCount = Math.min(Math.max(1, Number(n)), 10);
+    
+    // Validate concurrency parameter (1-5, default 1 for sequential execution)
+    const concurrencyLimit = concurrency !== undefined 
+      ? Math.min(Math.max(1, Number(concurrency)), 5)
+      : 1;
+    
+    console.log(`[Playlist API] Creating playlist with ${trackCount} tracks, concurrency_limit=${concurrencyLimit}`);
     
     // Prepare job parameters
     const jobParams = {
@@ -61,6 +67,7 @@ export async function POST(request: NextRequest) {
         item_count: trackCount,
         completed_count: 0,
         progress_pct: 0,
+        concurrency_limit: concurrencyLimit, // Set the concurrency limit
         prompt: prompt || null,
         params: jobParams,
         started_at: new Date().toISOString(),
@@ -82,7 +89,8 @@ export async function POST(request: NextRequest) {
     await emitEvent(parentId, organizationId, 'queued', {
       message: 'Playlist generation job queued',
       params: jobParams,
-      track_count: trackCount
+      track_count: trackCount,
+      concurrency_limit: concurrencyLimit
     });
     
     // Create child jobs - group tracks efficiently
@@ -132,19 +140,15 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Start child jobs processing asynchronously
-    childJobs.forEach((childId, index) => {
-      setTimeout(() => {
-        startJob(childId).catch(error => {
-          console.error(`[Child Job ${childId}] Failed to start:`, error);
-        });
-      }, index * 1000); // Stagger child jobs by 1 second each
-    });
+    // Use the new scheduler to dispatch children up to concurrency limit
+    console.log(`[Playlist API] Dispatching children for parent ${parentId} with concurrency_limit=${concurrencyLimit}`);
+    await dispatchChildrenUpToLimit(parentId);
     
     return NextResponse.json({
       job_id: parentId,
       child_ids: childJobs,
-      message: `Playlist generation job created with ${trackCount} tracks`
+      concurrency_limit: concurrencyLimit,
+      message: `Playlist generation job created with ${trackCount} tracks (concurrency: ${concurrencyLimit})`
     });
     
   } catch (error) {
