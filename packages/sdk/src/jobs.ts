@@ -54,6 +54,7 @@ export interface CreatePlaylistJobParams {
   vocal_id?: string;
   melody_id?: string;
   stream?: boolean;
+  concurrency?: number; // 1-5, default 1 for sequential execution (one track at a time)
 }
 
 export interface EventStream {
@@ -95,7 +96,9 @@ export class LyraJobs {
    */
   async createPlaylistJob(params: CreatePlaylistJobParams): Promise<{ 
     job_id: string; 
-    child_ids: string[] 
+    child_ids: string[];
+    concurrency_limit?: number;
+    message?: string;
   }> {
     const response = await fetch(`${this.baseUrl}/api/jobs/playlist`, {
       method: 'POST',

@@ -9,7 +9,8 @@ import {
   insertJobEvent, 
   getChildJobs, 
   countRunningJobsForOrg, 
-  insertTrack 
+  insertTrack,
+  getSupabaseAdmin
 } from '../db';
 import { createMurekaJob, pollMurekaJob } from '../mureka';
 import { putObject, createPresignedGetUrl } from '../r2';
@@ -58,6 +59,199 @@ async function waitForConcurrencySlot(organizationId: string): Promise<void> {
   }
   
   throw new Error(`Concurrency limit reached for organization ${organizationId}`);
+}
+
+/**
+ * Get parent job and its children with concurrency limit
+ */
+async function getParentAndChildren(parentId: string): Promise<{
+  parent: JobSnapshot;
+  children: JobSnapshot[];
+  concurrencyLimit: number;
+} | null> {
+  const supabase = getSupabaseAdmin();
+  
+  // Get parent job
+  const { data: parent, error: parentError } = await supabase
+    .from('generation_jobs')
+    .select('*')
+    .eq('id', parentId)
+    .single();
+    
+  if (parentError || !parent) {
+    console.error(`[Scheduler] Failed to get parent job ${parentId}:`, parentError);
+    return null;
+  }
+  
+  // Get children
+  const { data: children, error: childrenError } = await supabase
+    .from('generation_jobs')
+    .select('*')
+    .eq('parent_job_id', parentId)
+    .order('created_at', { ascending: true });
+    
+  if (childrenError) {
+    console.error(`[Scheduler] Failed to get children for parent ${parentId}:`, childrenError);
+    return null;
+  }
+  
+  return {
+    parent,
+    children: children || [],
+    concurrencyLimit: parent.concurrency_limit || 1
+  };
+}
+
+/**
+ * Count running children for a parent job
+ */
+async function countRunningChildren(parentId: string): Promise<number> {
+  const supabase = getSupabaseAdmin();
+  
+  const { count, error } = await supabase
+    .from('generation_jobs')
+    .select('*', { count: 'exact', head: true })
+    .eq('parent_job_id', parentId)
+    .eq('status', 'running');
+    
+  if (error) {
+    console.error(`[Scheduler] Failed to count running children for parent ${parentId}:`, error);
+    return 0;
+  }
+  
+  return count || 0;
+}
+
+/**
+ * Get the next queued child job for a parent
+ */
+async function nextQueuedChild(parentId: string): Promise<JobSnapshot | null> {
+  const supabase = getSupabaseAdmin();
+  
+  const { data, error } = await supabase
+    .from('generation_jobs')
+    .select('*')
+    .eq('parent_job_id', parentId)
+    .eq('status', 'queued')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single();
+    
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // No rows found - this is expected when no queued children
+      return null;
+    }
+    console.error(`[Scheduler] Failed to get next queued child for parent ${parentId}:`, error);
+    return null;
+  }
+  
+  return data;
+}
+
+/**
+ * Dispatch children up to the parent's concurrency limit
+ */
+export async function dispatchChildrenUpToLimit(parentId: string): Promise<void> {
+  try {
+    console.log(`[Scheduler] Dispatching children for parent ${parentId}`);
+    
+    const parentData = await getParentAndChildren(parentId);
+    if (!parentData) {
+      console.error(`[Scheduler] Failed to get parent data for ${parentId}`);
+      return;
+    }
+    
+    const { parent, children, concurrencyLimit } = parentData;
+    
+    console.log(`[Scheduler] Parent ${parentId} has concurrency_limit=${concurrencyLimit}, ${children.length} total children`);
+    
+    // Check if any child has failed - if so, fail the entire parent batch
+    const failedChildren = children.filter(child => child.status === 'failed');
+    if (failedChildren.length > 0) {
+      console.log(`[Scheduler] Parent ${parentId} has ${failedChildren.length} failed children, failing entire batch`);
+      
+      // Mark all remaining queued/running children as failed
+      const remainingChildren = children.filter(child => 
+        child.status === 'queued' || child.status === 'running'
+      );
+      
+      for (const child of remainingChildren) {
+        await updateJob(child.id, { 
+          status: 'failed', 
+          error: 'Parent batch failed due to sibling failure',
+          finished_at: new Date().toISOString()
+        });
+        await emitEvent(child.id, child.organization_id, 'failed', { 
+          error: 'Parent batch failed due to sibling failure'
+        });
+      }
+      
+      // Update parent as failed
+      await updateJob(parentId, { 
+        status: 'failed', 
+        error: 'Batch failed due to child job failure',
+        finished_at: new Date().toISOString()
+      });
+      await emitEvent(parentId, parent.organization_id, 'failed', { 
+        error: 'Batch failed due to child job failure',
+        failed_children: failedChildren.length
+      });
+      
+      console.log(`[Scheduler] Parent ${parentId} batch failed due to child failures`);
+      return;
+    }
+    
+    // Count currently running children
+    const runningCount = await countRunningChildren(parentId);
+    console.log(`[Scheduler] Parent ${parentId} has ${runningCount} running children (limit: ${concurrencyLimit})`);
+    
+    // Start children up to the concurrency limit
+    while (runningCount < concurrencyLimit) {
+      // Check org-level concurrency limit
+      const orgRunningCount = await countRunningJobsForOrg(parent.organization_id);
+      if (orgRunningCount >= MAX_CONCURRENT_JOBS_PER_ORG) {
+        console.log(`[Scheduler] Org concurrency limit reached (${orgRunningCount}/${MAX_CONCURRENT_JOBS_PER_ORG}), stopping dispatch`);
+        break;
+      }
+      
+      // Get next queued child
+      const nextChild = await nextQueuedChild(parentId);
+      if (!nextChild) {
+        console.log(`[Scheduler] No more queued children for parent ${parentId}`);
+        break;
+      }
+      
+      console.log(`[Scheduler] Starting child ${nextChild.id} for parent ${parentId} (${runningCount + 1}/${concurrencyLimit})`);
+      
+      // Start the child job asynchronously
+      runTrackJob(nextChild.id)
+        .then(async () => {
+          console.log(`[Scheduler] Child ${nextChild.id} completed successfully`);
+          // Update parent progress
+          await onChildFinishedUpdateParent(parentId);
+          // Dispatch next child if capacity allows
+          await dispatchChildrenUpToLimit(parentId);
+        })
+        .catch(async (error) => {
+          console.error(`[Scheduler] Child ${nextChild.id} failed:`, error);
+          // Update parent progress (this will handle the failure logic)
+          await onChildFinishedUpdateParent(parentId);
+          // Dispatch next child if capacity allows
+          await dispatchChildrenUpToLimit(parentId);
+        });
+      
+      // Increment running count for this iteration
+      const newRunningCount = await countRunningChildren(parentId);
+      if (newRunningCount >= concurrencyLimit) {
+        console.log(`[Scheduler] Reached concurrency limit for parent ${parentId}`);
+        break;
+      }
+    }
+    
+  } catch (error) {
+    console.error(`[Scheduler] Failed to dispatch children for parent ${parentId}:`, error);
+  }
 }
 
 /**
@@ -246,6 +440,7 @@ export async function runTrackJob(jobId: string): Promise<void> {
     // Update parent job if this is a child job
     if (job.parent_job_id) {
       await onChildFinishedUpdateParent(job.parent_job_id);
+      // Note: dispatchChildrenUpToLimit is called from the scheduler, not here
     }
     
   } catch (error) {
