@@ -182,6 +182,9 @@ async function checkAndDispatchNextChild(parentId: string): Promise<void> {
     
     console.log(`[Scheduler] Starting next child ${nextChild.id} for parent ${parentId} (${runningCount + 1}/${concurrencyLimit})`);
     
+    // Add a delay to respect Mureka API concurrency limits
+    await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
+    
     // Start the child job asynchronously
     runTrackJob(nextChild.id)
       .then(async () => {
@@ -238,6 +241,9 @@ export async function dispatchChildrenUpToLimit(parentId: string): Promise<void>
       }
       
       console.log(`[Scheduler] Starting child ${nextChild.id} for parent ${parentId} (${runningCount + 1}/${concurrencyLimit})`);
+      
+      // Add a delay to respect Mureka API concurrency limits
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay for first child
       
       // Start the child job asynchronously
       runTrackJob(nextChild.id)
