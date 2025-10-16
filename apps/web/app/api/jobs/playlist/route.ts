@@ -93,15 +93,24 @@ export async function POST(request: NextRequest) {
       concurrency_limit: concurrencyLimit
     });
     
-    // Create child jobs - group tracks efficiently
+    // Create child jobs - for concurrency testing, create one child job per track
     const childJobs = [];
-    const tracksPerJob = Math.min(trackCount, 3); // Mureka can generate up to 3 tracks per request
+    const tracksPerJob = 1; // Each child job generates exactly 1 track for concurrency testing
     
     // Calculate how many child jobs we need
-    const numChildJobs = Math.ceil(trackCount / tracksPerJob);
+    const numChildJobs = trackCount; // One child job per track
     
     for (let i = 0; i < numChildJobs; i++) {
       const tracksInThisJob = Math.min(tracksPerJob, trackCount - (i * tracksPerJob));
+      
+      // Create unique prompts for each track to test distinct generation
+      const trackPrompts = [
+        "Upbeat electronic dance music with synthesizers and driving bass, energetic and modern",
+        "Smooth jazz with saxophone and piano, relaxing and sophisticated", 
+        "Acoustic folk with guitar and harmonica, warm and organic"
+      ];
+      
+      const trackPrompt = trackPrompts[i] || `Track ${i + 1} - ${prompt || 'Generated music'}`;
       
       const { data: childJob, error: childError } = await supabase
         .from('generation_jobs')
@@ -114,8 +123,8 @@ export async function POST(request: NextRequest) {
           item_count: tracksInThisJob,
           completed_count: 0,
           progress_pct: 0,
-          prompt: prompt || null,
-          params: { ...jobParams, n: tracksInThisJob }, // Each child can generate multiple tracks
+          prompt: trackPrompt, // Each child gets a unique prompt
+          params: { ...jobParams, n: tracksInThisJob, prompt: trackPrompt }, // Pass unique prompt to params too
           started_at: new Date().toISOString(),
         }])
         .select('id')
@@ -133,10 +142,10 @@ export async function POST(request: NextRequest) {
       
       // Emit queued event for child
       await emitEvent(childJob.id, organizationId, 'queued', {
-        message: `Track batch ${i + 1} queued (${tracksInThisJob} tracks)`,
+        message: `Track ${i + 1} queued: ${trackPrompt.substring(0, 50)}...`,
         parent_job_id: parentId,
-        track_batch: i + 1,
-        tracks_in_batch: tracksInThisJob
+        track_number: i + 1,
+        track_prompt: trackPrompt
       });
     }
     
