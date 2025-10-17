@@ -7,7 +7,7 @@ import { prompts } from "./prompts";
 import { resolveModel, DEFAULT_MODEL_ID } from "./models";
 
 // Local schemas to avoid client/server import issues
-const ModelIdSchema = z.enum(["auto", "mureka-6", "mureka-7.5", "mureka-o1"]);
+const ModelIdSchema = z.enum(["auto", "gpt-4o-mini", "gpt-4o", "mureka-6", "mureka-7.5", "mureka-o1"]);
 const EnergySchema = z.number().int().min(1).max(10);
 const BpmRangeSchema = z.tuple([z.number().int().min(40).max(240), z.number().int().min(40).max(240)])
   .refine(([min, max]) => min <= max, { message: "bpmRange: min must be ≤ max" });
