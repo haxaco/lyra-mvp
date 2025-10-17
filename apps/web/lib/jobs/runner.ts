@@ -15,6 +15,8 @@ import {
 import { createMurekaJob, pollMurekaJob } from '../mureka';
 import { putObject, createPresignedGetUrl } from '../r2';
 import type { JobSnapshot, JobEventType } from '../types';
+import { learnFromComposedPlaylist } from '../ai/brandLearning';
+import { ComposeConfig } from '@lyra/sdk';
 
 const MAX_CONCURRENT_JOBS_PER_ORG = 5; // Increased to allow more concurrent jobs
 const RETRY_DELAYS = [1000, 2000, 4000]; // 1s, 2s, 4s
@@ -544,6 +546,36 @@ export async function onChildFinishedUpdateParent(parentId: string): Promise<voi
       });
       
       console.log(`[Parent ${parentId}] Playlist generation ${finalStatus} (${succeededChildren.length}/${totalChildren} child jobs succeeded)`);
+      
+      // Learn from successful playlist composition
+      if (finalStatus === 'succeeded' && succeededChildren.length > 0) {
+        try {
+          // Try to extract compose config from parent job params
+          // For now, we'll create a basic config from the job parameters
+          // In a full implementation, this would come from an AI compose session
+          const composeConfig: ComposeConfig = {
+            genres: ['electronic', 'ambient', 'instrumental'], // Default genres
+            bpmRange: [120, 140] as [number, number], // Default BPM range
+            energy: 6, // Default energy
+            moods: ['uplifting', 'focused'], // Default moods
+            durationSec: 180, // Default duration
+            tracks: succeededChildren.length,
+            familyFriendly: true,
+            model: 'auto'
+          };
+          
+          // Fire and forget - don't block the user
+          learnFromComposedPlaylist(parentJob.organization_id, composeConfig)
+            .then(() => {
+              console.log(`[Parent ${parentId}] Brand learning completed successfully`);
+            })
+            .catch((e) => {
+              console.warn(`[Parent ${parentId}] Brand learning failed:`, e);
+            });
+        } catch (error) {
+          console.warn(`[Parent ${parentId}] Brand learning setup failed:`, error);
+        }
+      }
     }
     
   } catch (error) {
