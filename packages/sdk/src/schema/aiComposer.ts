@@ -58,6 +58,8 @@ export const ComposeConfigSchema = z.object({
   tracks: z.number().int().min(1).max(10).default(6),
   familyFriendly: z.boolean().default(true),
   model: ModelIdSchema.default("auto"),
+  /** NEW: per-playlist override */
+  allowExplicit: z.boolean().default(false),
 });
 export type ComposeConfig = z.infer<typeof ComposeConfigSchema>;
 
