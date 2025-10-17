@@ -7,6 +7,7 @@ import { SongBuilder, SongLibrary } from "@lyra/ui/dist/components";
 import { MusicPlayerResponsive } from "@lyra/ui/dist/components";
 import { Music, TestTube, Clock, Zap, Trash2 } from "lucide-react";
 import { LyraJobs } from "@lyra/sdk";
+import ComposerTest from "./ComposerTest";
 
 export const dynamic = 'force-dynamic';
 
@@ -440,6 +441,11 @@ export default function MurekaTestPage() {
       <pre className="w-full max-w-3xl text-xs bg-black/40 p-4 rounded-lg overflow-auto">
         {log}
       </pre>
+
+      {/* AI Composer Test */}
+      <div className="mt-12">
+        <ComposerTest />
+      </div>
     </div>
   );
 }
