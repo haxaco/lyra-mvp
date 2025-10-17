@@ -26,7 +26,13 @@ export async function GET(req: Request, { params }: { params: { sessionId: strin
             sessionId,
             organizationId,
             userId,
-            briefInput: { brief },
+            briefInput: { 
+              brief,
+              durationSec: 180,
+              n: 6,
+              model: "auto" as const,
+              familyFriendly: true
+            },
           })) {
             await saveStreamEvent({
               sessionId,
