@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 // TODO: These functions will be implemented in the AI Composer SDK
 // import { startComposeSession, streamComposeSession } from "@lyra/sdk";
 
@@ -77,6 +78,7 @@ function JsonCard({ title, data }: { title: string; data: any }) {
 }
 
 export default function ComposerTest() {
+  const supabase = createClientComponentClient();
   const [orgId, setOrgId] = useState("");
   const [userId, setUserId] = useState("");
   const [brief, setBrief] = useState("Energetic indie pop for a retail brand launch");
@@ -99,6 +101,30 @@ export default function ComposerTest() {
   const stopRef = useRef<null | (() => void)>(null);
 
   const baseUrl = useMemo(() => BASE.replace(/\/$/, ""), []);
+
+  // Load user and organization data
+  useEffect(() => {
+    async function getUserAndOrg() {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        setUserId(user.id);
+        
+        const { data: memberships } = await supabase
+          .from('user_memberships')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .limit(1);
+        
+        if (memberships && memberships.length > 0) {
+          const userOrgId = memberships[0].organization_id;
+          setOrgId(userOrgId);
+        }
+      }
+    }
+    
+    getUserAndOrg();
+  }, [supabase]);
 
   // auto-scroll logs
   useEffect(() => {
@@ -283,24 +309,31 @@ export default function ComposerTest() {
 
       <div className="grid gap-3 md:grid-cols-2">
         <label className="text-sm">
-          Org ID
+          Org ID <span className="text-xs text-gray-500">(auto-populated)</span>
           <input
-            className="mt-1 w-full border rounded px-2 py-1"
+            className="mt-1 w-full border rounded px-2 py-1 bg-gray-50"
             value={orgId}
             onChange={(e) => setOrgId(e.target.value)}
-            placeholder="00000000-0000-0000-0000-000000000000"
+            placeholder="Loading..."
+            disabled={!orgId}
           />
         </label>
         <label className="text-sm">
-          User ID
+          User ID <span className="text-xs text-gray-500">(auto-populated)</span>
           <input
-            className="mt-1 w-full border rounded px-2 py-1"
+            className="mt-1 w-full border rounded px-2 py-1 bg-gray-50"
             value={userId}
             onChange={(e) => setUserId(e.target.value)}
-            placeholder="00000000-0000-0000-0000-000000000000"
+            placeholder="Loading..."
+            disabled={!userId}
           />
         </label>
       </div>
+      {(!orgId || !userId) && (
+        <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+          ⏳ Loading user data... You can manually enter IDs if needed for testing different scenarios.
+        </div>
+      )}
 
       <label className="text-sm block mt-3">
         Brief
@@ -312,7 +345,12 @@ export default function ComposerTest() {
       </label>
 
       <div className="flex flex-wrap gap-2 mt-3">
-        <button className="px-3 py-1.5 rounded bg-black text-white text-sm" onClick={createSession}>
+        <button 
+          className="px-3 py-1.5 rounded bg-black text-white text-sm disabled:opacity-50" 
+          onClick={createSession}
+          disabled={!orgId || !userId}
+          title={!orgId || !userId ? "Waiting for user data to load" : ""}
+        >
           Create Session
         </button>
         <button
@@ -325,8 +363,8 @@ export default function ComposerTest() {
         <button
           className="px-3 py-1.5 rounded bg-emerald-600 text-white text-sm disabled:opacity-50"
           onClick={generateFromBlueprints}
-          disabled={!config || !blueprints?.length || genBusy}
-          title={!config || !blueprints?.length ? "Need config + blueprints first" : ""}
+          disabled={!config || !blueprints?.length || genBusy || !orgId || !userId}
+          title={!config || !blueprints?.length ? "Need config + blueprints first" : !orgId || !userId ? "Waiting for user data" : ""}
         >
           {genBusy ? "Generating…" : "Generate Playlist From Blueprints"}
         </button>
