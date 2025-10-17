@@ -26,6 +26,7 @@ export interface JobSnapshot {
   progress_pct: number;
   item_count: number;
   completed_count: number;
+  concurrency_limit?: number;
   prompt?: string;
   params?: any;
   error?: string;
