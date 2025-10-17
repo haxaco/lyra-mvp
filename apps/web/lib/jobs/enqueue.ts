@@ -24,6 +24,7 @@ export async function enqueueJob(
       parent_job_id: options.parentJobId || null,
       model_id: null, // Dynamic model names from API
       status: 'queued',
+      kind: type, // Set the job kind
       item_count: type === 'playlist.generate' ? payload.blueprints?.length || 1 : 1,
       completed_count: 0,
       progress_pct: 0,

@@ -112,7 +112,7 @@ export async function countRunningJobsForOrg(orgId: string): Promise<number> {
     .from('generation_jobs')
     .select('*', { count: 'exact', head: true })
     .eq('organization_id', orgId)
-    .in('status', ['queued', 'running']);
+    .eq('status', 'running'); // Only count actually running jobs, not queued ones
     
   if (error) {
     throw new Error(`Failed to count running jobs: ${error.message}`);
