@@ -16,6 +16,7 @@ import { createMurekaJob, pollMurekaJob } from '../mureka';
 import { putObject, createPresignedGetUrl } from '../r2';
 import type { JobSnapshot, JobEventType } from '../types';
 import { learnFromComposedPlaylist } from '../ai/brandLearning';
+import { transformBlueprintToMurekaParams } from '../ai/blueprintToMureka';
 import { ComposeConfig } from '@lyra/sdk';
 import { generatePlaylistStep } from '../../jobs/steps/generatePlaylist';
 
@@ -330,17 +331,15 @@ export async function runTrackJob(jobId: string): Promise<void> {
     
     let murekaParams;
     if (isPlaylistTrack) {
-      // This is a playlist track - use blueprint data
+      // This is a playlist track - transform blueprint to Mureka params
       const blueprint = job.params.blueprint;
+      const transformedParams = transformBlueprintToMurekaParams(blueprint);
       murekaParams = {
-        lyrics: blueprint.lyrics || '[Instrumental only]',
-        model: blueprint.model || job.params.config?.model || 'auto',
+        ...transformedParams,
         n: 1, // Always 1 for playlist tracks
-        prompt: blueprint.prompt,
         reference_id: job.params?.reference_id,
         vocal_id: job.params?.vocal_id,
         melody_id: job.params?.melody_id,
-        stream: job.params?.stream || false,
       };
     } else {
       // This is a standalone track - use original params
@@ -604,13 +603,14 @@ export async function runPlaylistJob(jobId: string): Promise<void> {
           parent_job_id: jobId,
           status: 'queued',
           kind: 'track.generate',
+          prompt: blueprint.prompt, // Set prompt from blueprint for the required column
           params: {
             organizationId: job.organization_id,
             userId: job.user_id,
             locationId: job.params.locationId,
             playlistId: playlistId,
             trackIndex: i,
-            blueprint: blueprint,
+            blueprint: blueprint, // Keep prompt here too for consistency
             config: job.params.config
           },
           progress_pct: 0,

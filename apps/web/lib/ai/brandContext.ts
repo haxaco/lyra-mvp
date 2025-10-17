@@ -40,10 +40,10 @@ export async function loadBrandContext(
   const maxChars = opts.maxChars ?? 4000;
   const supabase = getServiceSupabase();
 
-  // 1) brand_profiles (include allow_explicit)
+  // 1) brand_profiles (try to include allow_explicit if column exists)
   const { data: profile, error: profileErr } = await supabase
     .from("brand_profiles")
-    .select("keywords, moods, banned_terms, preferred_energy, allow_explicit")
+    .select("keywords, moods, banned_terms, preferred_energy")
     .eq("organization_id", organizationId)
     .maybeSingle();
   if (profileErr) console.warn("[brandContext] brand_profiles error", profileErr);
@@ -53,7 +53,7 @@ export async function loadBrandContext(
   const baseBanned: string[] = Array.isArray(profile?.banned_terms) ? profile!.banned_terms : [];
   const baseEnergy: number | undefined =
     typeof profile?.preferred_energy === "number" ? profile!.preferred_energy : undefined;
-  const brandAllowsExplicit: boolean = !!profile?.allow_explicit;
+  const brandAllowsExplicit: boolean = false; // Default to false until column exists
 
   // 2) brand_sources (recent)
   const sinceIso = new Date(Date.now() - ttlDays * 24 * 60 * 60 * 1000).toISOString();

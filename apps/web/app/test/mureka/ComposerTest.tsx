@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-// TODO: These functions will be implemented in the AI Composer SDK
-// import { startComposeSession, streamComposeSession } from "@lyra/sdk";
+// Import from the built SDK
+import { startComposeSession, streamComposeSession } from "@lyra/sdk";
 
 type StreamEvent =
   | { type: "message"; data: { text: string } }
@@ -15,56 +15,6 @@ type StreamEvent =
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL || "";
 
-// TODO: Placeholder implementations - these will be replaced with real AI Composer SDK functions
-async function startComposeSession(baseUrl: string, params: { orgId: string; userId: string; brief: { brief: string } }): Promise<string> {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-function streamComposeSession(baseUrl: string, params: { sessionId: string; orgId: string; userId: string; brief: string; onEvent: (evt: StreamEvent) => void; onError: (err: any) => void }): () => void {
-  // Simulate streaming events
-  const events: StreamEvent[] = [
-    { type: "message", data: { text: "Analyzing your brief..." } },
-    { type: "message", data: { text: "Generating playlist suggestions..." } },
-    { type: "suggestions", data: { suggestions: [
-      { title: "Indie Pop Energy", genres: ["indie pop", "alternative"], bpmRange: [120, 140], energy: 8, moods: ["energetic", "uplifting"] },
-      { title: "Chill Vibes", genres: ["indie", "ambient"], bpmRange: [80, 100], energy: 4, moods: ["relaxed", "dreamy"] }
-    ]}},
-    { type: "message", data: { text: "Creating config draft..." } },
-    { type: "config_draft", data: { config: {
-      playlistTitle: "Retail Brand Launch Mix",
-      genres: ["indie pop", "alternative"],
-      bpmRange: [120, 140],
-      energy: 8,
-      moods: ["energetic", "uplifting"],
-      durationSec: 180,
-      tracks: 6,
-      familyFriendly: true,
-      model: "auto",
-      allowExplicit: false
-    }}},
-    { type: "message", data: { text: "Generating track blueprints..." } },
-    { type: "blueprints", data: { blueprints: [
-      { index: 0, title: "Opening Anthem", prompt: "Upbeat indie pop with driving rhythm", lyrics: "[Instrumental only]", bpm: 130, genre: "indie pop", energy: 8, durationSec: 180, model: "auto" },
-      { index: 1, title: "Brand Moment", prompt: "Energetic alternative rock with memorable hook", lyrics: "[Instrumental only]", bpm: 125, genre: "alternative", energy: 7, durationSec: 180, model: "auto" },
-      { index: 2, title: "Peak Energy", prompt: "High-energy indie pop with soaring melodies", lyrics: "[Instrumental only]", bpm: 140, genre: "indie pop", energy: 9, durationSec: 180, model: "auto" }
-    ]}},
-    { type: "done", data: {} }
-  ];
-
-  let eventIndex = 0;
-  const interval = setInterval(() => {
-    if (eventIndex < events.length) {
-      params.onEvent(events[eventIndex]);
-      eventIndex++;
-    } else {
-      clearInterval(interval);
-    }
-  }, 1500);
-
-  return () => clearInterval(interval);
-}
 
 function JsonCard({ title, data }: { title: string; data: any }) {
   return (
@@ -212,7 +162,7 @@ export default function ComposerTest() {
           stopRef.current = null;
         }
       },
-      onError: (err) => {
+      onError: (err: any) => {
         appendLog(`⚠️ stream error: ${String((err as any)?.message || err)}`);
         setIsStreaming(false);
         stopRef.current?.();
@@ -278,6 +228,11 @@ export default function ComposerTest() {
           }
           if (evt.type === "failed") {
             appendLog(`✗ job error: ${evt.data?.error || ""}`);
+            es.close();
+            setGenBusy(false);
+          }
+          if (evt.type === "complete") {
+            appendLog(`✓ job completed: ${evt.data?.message || ""}`);
             es.close();
             setGenBusy(false);
           }
