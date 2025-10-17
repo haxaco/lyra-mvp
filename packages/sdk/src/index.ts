@@ -5,3 +5,32 @@ export * from "./auth";
 export * from "./jobs";
 export * from "./react/useJob";
 
+// AI Composer schemas and types
+export {
+  ModelIdSchema,
+  type ModelId,
+  EnergySchema,
+  type Energy,
+  BpmRangeSchema,
+  PlaylistBriefSchema,
+  type PlaylistBrief,
+  ComposeSuggestionCardSchema,
+  type ComposeSuggestionCard,
+  ComposeConfigSchema,
+  type ComposeConfig,
+  TrackBlueprintSchema,
+  type TrackBlueprint,
+  TrackBlueprintListSchema,
+  StreamEventTypeSchema,
+  type StreamEventType,
+  StreamEventSchema,
+  type StreamEvent,
+  AIComposeSessionRowSchema,
+  type AIComposeSessionRow,
+  AIComposeMessageRowSchema,
+  type AIComposeMessageRow,
+  parseOrThrow,
+  coerceComposeConfig,
+  coerceTrackBlueprints,
+} from "./schema/aiComposer";
+
