@@ -87,6 +87,12 @@ export default function ComposerTest() {
   const [suggestions, setSuggestions] = useState<any[] | null>(null);
   const [config, setConfig] = useState<any | null>(null);
   const [blueprints, setBlueprints] = useState<any[] | null>(null);
+
+  const [genBusy, setGenBusy] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+  const [playlistId, setPlaylistId] = useState<string | null>(null);
+  const [playlistTracks, setPlaylistTracks] = useState<any[] | null>(null);
+
   const [logs, setLogs] = useState<string[]>([]);
   const logContainerRef = useRef<HTMLDivElement>(null);
   const stopRef = useRef<null | (() => void)>(null);
@@ -110,6 +116,10 @@ export default function ComposerTest() {
     setSuggestions(null);
     setConfig(null);
     setBlueprints(null);
+    setPlaylistId(null);
+    setPlaylistTracks(null);
+    setGenError(null);
+    setGenBusy(false);
     setLogs([]);
     if (stopRef.current) {
       stopRef.current();
@@ -183,11 +193,51 @@ export default function ComposerTest() {
     });
   }, [sessionId, orgId, userId, brief, baseUrl, isStreaming, appendLog]);
 
+  const generateFromBlueprints = useCallback(async () => {
+    if (!orgId || !userId || !config || !blueprints?.length) {
+      alert("Need orgId, userId, config, and blueprints.");
+      return;
+    }
+    setGenBusy(true);
+    setGenError(null);
+    setPlaylistId(null);
+    setPlaylistTracks(null);
+    appendLog("→ Generating playlist from blueprints (sequential)…");
+
+    try {
+      const res = await fetch(`${baseUrl}/api/compose/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organizationId: orgId,
+          userId,
+          config,
+          blueprints,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setGenError(json?.error || `HTTP ${res.status}`);
+        appendLog(`✗ generation failed: ${json?.error || res.statusText}`);
+        setGenBusy(false);
+        return;
+      }
+      setPlaylistId(json.playlistId);
+      setPlaylistTracks(json.tracks || []);
+      appendLog(`✓ playlist created: ${json.playlistId}`);
+    } catch (e: any) {
+      setGenError(e?.message || String(e));
+      appendLog(`✗ generation error: ${e?.message || String(e)}`);
+    } finally {
+      setGenBusy(false);
+    }
+  }, [orgId, userId, config, blueprints, baseUrl, appendLog]);
+
   return (
     <div className="border rounded-lg p-4 bg-white/70 mt-10 shadow-sm">
       <h2 className="text-lg font-semibold mb-2">🎧 AI Composer Test</h2>
       <p className="text-sm text-gray-600 mb-4">
-        Generate playlist blueprints from a text brief using the AI Composer Engine (SSE).
+        Create a compose session → stream staged events → then generate a real playlist (Mureka → R2 → DB).
       </p>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -221,10 +271,7 @@ export default function ComposerTest() {
       </label>
 
       <div className="flex flex-wrap gap-2 mt-3">
-        <button
-          className="px-3 py-1.5 rounded bg-black text-white text-sm"
-          onClick={createSession}
-        >
+        <button className="px-3 py-1.5 rounded bg-black text-white text-sm" onClick={createSession}>
           Create Session
         </button>
         <button
@@ -235,9 +282,14 @@ export default function ComposerTest() {
           Start Stream
         </button>
         <button
-          className="px-3 py-1.5 rounded bg-gray-100 text-sm"
-          onClick={clearAll}
+          className="px-3 py-1.5 rounded bg-emerald-600 text-white text-sm disabled:opacity-50"
+          onClick={generateFromBlueprints}
+          disabled={!config || !blueprints?.length || genBusy}
+          title={!config || !blueprints?.length ? "Need config + blueprints first" : ""}
         >
+          {genBusy ? "Generating…" : "Generate Playlist From Blueprints"}
+        </button>
+        <button className="px-3 py-1.5 rounded bg-gray-100 text-sm" onClick={clearAll}>
           Clear
         </button>
       </div>
@@ -254,9 +306,36 @@ export default function ComposerTest() {
         </div>
       </div>
 
+      {/* Playlist result */}
+      {playlistId && (
+        <div className="mt-6 border rounded-md p-3">
+          <div className="text-sm font-semibold mb-2">✅ Playlist Created</div>
+          <div className="text-xs text-gray-600 mb-2">Playlist ID: {playlistId}</div>
+          <div className="space-y-3">
+            {playlistTracks?.map((t, idx) => (
+              <div key={t.id} className="border rounded p-2">
+                <div className="text-sm font-medium">{t.title || `Track ${idx + 1}`}</div>
+                <div className="text-xs text-gray-500 mb-1">
+                  {Math.round(t.duration_seconds)}s • {t.r2_key}
+                </div>
+                {t.mp3_url && (
+                  <audio controls src={t.mp3_url} className="w-full">
+                    Your browser does not support audio.
+                  </audio>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {genError && (
+        <div className="mt-4 text-sm text-red-600">Error: {genError}</div>
+      )}
+
       <div
         ref={logContainerRef}
-        className="mt-5 border-t pt-3 text-xs text-gray-700 max-h-56 overflow-auto font-mono bg-gray-50 rounded-md p-2 animate-pulse-once"
+        className="mt-6 border-t pt-3 text-xs text-gray-700 max-h-56 overflow-auto font-mono bg-gray-50 rounded-md p-2"
       >
         {logs.length === 0 && <div className="text-gray-400">No logs yet…</div>}
         {logs.map((l, i) => (

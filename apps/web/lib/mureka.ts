@@ -162,6 +162,30 @@ export async function pollMurekaJob(providerJobId: string): Promise<MurekaJobRes
  * @param providerJobId - The provider job ID to check
  * @returns Current job status
  */
+/**
+ * Generate a track from a blueprint by creating a job and polling until completion
+ * @param params - Track generation parameters
+ * @returns Complete Mureka job result with choices
+ */
+export async function generateMurekaTrackFromBlueprint(params: {
+  model?: string;
+  prompt: string;
+  lyrics?: string;
+  durationSec?: number;
+}): Promise<MurekaJobResult> {
+  // Create the job
+  const { providerJobId } = await createMurekaJob({
+    model: (params.model as 'auto' | 'mureka-6' | 'mureka-7.5' | 'mureka-o1') || 'auto',
+    prompt: params.prompt,
+    lyrics: params.lyrics || '[Instrumental only]',
+    n: 1, // Single track
+    stream: false,
+  });
+
+  // Poll until completion
+  return await pollMurekaJob(providerJobId);
+}
+
 export async function getMurekaJobStatus(providerJobId: string): Promise<MurekaJobResult> {
   try {
     const response = await fetch(`${MUREKA_API_BASE}/v1/song/query/${providerJobId}`, {

@@ -151,3 +151,36 @@ export async function r2SignGet(key: string, expiresIn = 3600): Promise<string> 
 export function r2PublicUrl(_: string): null {
   return null;
 }
+
+/**
+ * Upload a file from a URL to R2
+ * @param url - Source URL to download from
+ * @param key - R2 key to store the file
+ * @param options - Upload options
+ */
+export async function uploadFromUrl(
+  url: string, 
+  key: string, 
+  options: { contentType?: string } = {}
+): Promise<void> {
+  try {
+    // Fetch the file from the URL
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch from URL: ${response.status} ${response.statusText}`);
+    }
+
+    // Convert to buffer
+    const buffer = Buffer.from(await response.arrayBuffer());
+    
+    // Upload to R2
+    await putObject({
+      key,
+      body: buffer,
+      contentType: options.contentType || 'application/octet-stream',
+    });
+  } catch (error) {
+    console.error(`Failed to upload from URL ${url} to R2 key ${key}:`, error);
+    throw error;
+  }
+}
