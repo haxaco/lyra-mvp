@@ -10,6 +10,7 @@ export type BrandContext = {
   textSummary?: string;
   isEmpty: boolean;
   usedFallback: boolean;
+  brandAllowsExplicit?: boolean; // NEW
 };
 
 type Options = {
@@ -39,10 +40,10 @@ export async function loadBrandContext(
   const maxChars = opts.maxChars ?? 4000;
   const supabase = getServiceSupabase();
 
-  // 1) brand_profiles
+  // 1) brand_profiles (include allow_explicit)
   const { data: profile, error: profileErr } = await supabase
     .from("brand_profiles")
-    .select("keywords, moods, banned_terms, preferred_energy")
+    .select("keywords, moods, banned_terms, preferred_energy, allow_explicit")
     .eq("organization_id", organizationId)
     .maybeSingle();
   if (profileErr) console.warn("[brandContext] brand_profiles error", profileErr);
@@ -52,6 +53,7 @@ export async function loadBrandContext(
   const baseBanned: string[] = Array.isArray(profile?.banned_terms) ? profile!.banned_terms : [];
   const baseEnergy: number | undefined =
     typeof profile?.preferred_energy === "number" ? profile!.preferred_energy : undefined;
+  const brandAllowsExplicit: boolean = !!profile?.allow_explicit;
 
   // 2) brand_sources (recent)
   const sinceIso = new Date(Date.now() - ttlDays * 24 * 60 * 60 * 1000).toISOString();
@@ -93,6 +95,7 @@ export async function loadBrandContext(
       ...DEFAULT_FALLBACK,
       isEmpty: true,
       usedFallback: true,
+      brandAllowsExplicit: false, // Default to false for fallback
     };
   }
 
@@ -104,5 +107,6 @@ export async function loadBrandContext(
     textSummary: textSummary || undefined,
     isEmpty: false,
     usedFallback: false,
+    brandAllowsExplicit,
   };
 }

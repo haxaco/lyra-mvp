@@ -561,7 +561,8 @@ export async function onChildFinishedUpdateParent(parentId: string): Promise<voi
             durationSec: 180, // Default duration
             tracks: succeededChildren.length,
             familyFriendly: true,
-            model: 'auto'
+            model: 'auto',
+            allowExplicit: false // Default to safe content
           };
           
           // Fire and forget - don't block the user
