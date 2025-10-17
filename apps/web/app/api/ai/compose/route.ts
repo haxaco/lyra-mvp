@@ -16,7 +16,7 @@ const PlaylistBriefSchema = z.object({
   bannedTerms: z.array(z.string()).max(50).optional(),
   durationSec: z.number().int().min(30).max(600).default(180),
   n: z.number().int().min(1).max(10).default(6),
-  model: z.enum(["auto", "mureka-6", "mureka-7.5", "mureka-o1"]).default("auto"),
+  model: z.enum(["auto", "gpt-4o-mini", "gpt-4o", "mureka-6", "mureka-7.5", "mureka-o1"]).default("auto"),
   familyFriendly: z.boolean().default(true),
   seed: z.string().optional(),
   temperature: z.number().min(0).max(2).optional(),
