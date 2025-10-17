@@ -40,8 +40,8 @@ Given a playlist config, produce per-track blueprints. Return a JSON array of ob
 - genre: string (1-50 chars)
 - energy: number (1-10)
 - key: string (optional, max 3 chars like "C", "Am")
-- model: "auto" (default)
+- model: "mureka-7.5" (use this model for all tracks)
 - durationSec: number (30-600, default 180)
 
-Return the JSON as a direct array: [{"index": 0, "title": "Opening Track", "prompt": "Upbeat house with funky bassline", "lyrics": "[Instrumental only]", "bpm": 128, "genre": "house", "energy": 8, "model": "auto", "durationSec": 180}]`),
+Return the JSON as a direct array: [{"index": 0, "title": "Opening Track", "prompt": "Upbeat house with funky bassline", "lyrics": "[Instrumental only]", "bpm": 128, "genre": "house", "energy": 8, "model": "mureka-7.5", "durationSec": 180}]`),
 };
