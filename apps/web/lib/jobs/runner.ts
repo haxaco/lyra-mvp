@@ -325,17 +325,36 @@ export async function runTrackJob(jobId: string): Promise<void> {
     });
     await emitEvent(jobId, job.organization_id, 'started');
     
-    // Create Mureka job
-    const murekaParams = {
-      lyrics: job.params?.lyrics || '[Instrumental only]',
-      model: job.params?.model || 'auto',
-      n: job.params?.n || job.item_count || 1, // Use params.n first, then item_count as fallback
-      prompt: job.params?.prompt,
-      reference_id: job.params?.reference_id,
-      vocal_id: job.params?.vocal_id,
-      melody_id: job.params?.melody_id,
-      stream: job.params?.stream || false,
-    };
+    // Determine if this is a playlist track or standalone track
+    const isPlaylistTrack = job.params?.blueprint && job.params?.playlistId;
+    
+    let murekaParams;
+    if (isPlaylistTrack) {
+      // This is a playlist track - use blueprint data
+      const blueprint = job.params.blueprint;
+      murekaParams = {
+        lyrics: blueprint.lyrics || '[Instrumental only]',
+        model: blueprint.model || job.params.config?.model || 'auto',
+        n: 1, // Always 1 for playlist tracks
+        prompt: blueprint.prompt,
+        reference_id: job.params?.reference_id,
+        vocal_id: job.params?.vocal_id,
+        melody_id: job.params?.melody_id,
+        stream: job.params?.stream || false,
+      };
+    } else {
+      // This is a standalone track - use original params
+      murekaParams = {
+        lyrics: job.params?.lyrics || '[Instrumental only]',
+        model: job.params?.model || 'auto',
+        n: job.params?.n || job.item_count || 1, // Use params.n first, then item_count as fallback
+        prompt: job.params?.prompt,
+        reference_id: job.params?.reference_id,
+        vocal_id: job.params?.vocal_id,
+        melody_id: job.params?.melody_id,
+        stream: job.params?.stream || false,
+      };
+    }
     
     console.log(`[Job ${jobId}] Creating Mureka job with params:`, murekaParams);
     
@@ -399,8 +418,19 @@ export async function runTrackJob(jobId: string): Promise<void> {
       
       // Download and upload to R2
       const jobTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const mp3Key = `tracks/${jobId}/${jobTimestamp}-${i}.mp3`;
-      const flacKey = `tracks/${jobId}/${jobTimestamp}-${i}.flac`;
+      let mp3Key, flacKey;
+      
+      if (isPlaylistTrack) {
+        // For playlist tracks, use the playlist structure
+        const trackIndex = job.params.trackIndex || i;
+        const baseKey = `org_${job.organization_id}/playlist_${job.params.playlistId}/track_${trackIndex}`;
+        mp3Key = `${baseKey}.mp3`;
+        flacKey = `${baseKey}.flac`;
+      } else {
+        // For standalone tracks, use the original structure
+        mp3Key = `tracks/${jobId}/${jobTimestamp}-${i}.mp3`;
+        flacKey = `tracks/${jobId}/${jobTimestamp}-${i}.flac`;
+      }
       
       if (choice.url) {
         await downloadAndUploadToR2(choice.url, mp3Key, 'audio/mpeg');
@@ -417,12 +447,14 @@ export async function runTrackJob(jobId: string): Promise<void> {
         r2_key_flac: flacKey,
         duration_seconds: choice.duration || null, // Store raw milliseconds from Mureka API
         job_id: jobId,
-        title: generateTitle(job.prompt, i), // Generate unique titles for each track
+        title: isPlaylistTrack ? 
+          (job.params.blueprint?.title || generateTitle(job.params.blueprint?.prompt, i)) :
+          generateTitle(job.prompt, i), // Generate unique titles for each track
         artist: 'User', // Default artist
         meta: {
           provider: 'mureka',
           model: murekaParams.model,
-          prompt: job.prompt,
+          prompt: isPlaylistTrack ? job.params.blueprint?.prompt : job.prompt,
           lyrics: murekaParams.lyrics,
           trace_id: result.trace_id,
           mureka_choice_id: choice.id,
@@ -435,6 +467,22 @@ export async function runTrackJob(jobId: string): Promise<void> {
       const trackId = await insertTrack(trackData);
       trackIds.push(trackId);
       console.log(`[Job ${jobId}] Track ${i + 1} inserted with ID: ${trackId}`);
+      
+      // If this is a playlist track, add it to the playlist
+      if (isPlaylistTrack) {
+        const supabase = getSupabaseAdmin();
+        const trackIndex = job.params.trackIndex || i;
+        const { error: itemErr } = await supabase.from("playlist_items").insert({
+          playlist_id: job.params.playlistId,
+          track_id: trackId,
+          position: trackIndex,
+        });
+        if (itemErr) {
+          console.error(`[Job ${jobId}] Failed to add track to playlist:`, itemErr);
+          throw new Error(`Failed to add track to playlist: ${itemErr.message}`);
+        }
+        console.log(`[Job ${jobId}] Track ${trackId} added to playlist ${job.params.playlistId} at position ${trackIndex}`);
+      }
       
       await emitEvent(jobId, job.organization_id, 'item_succeeded', { 
         track_id: trackId,
@@ -488,7 +536,7 @@ export async function runTrackJob(jobId: string): Promise<void> {
 }
 
 /**
- * Run a playlist generation job
+ * Run a playlist generation job by creating child jobs for each track
  */
 export async function runPlaylistJob(jobId: string): Promise<void> {
   let job: JobSnapshot | null = null;
@@ -500,63 +548,99 @@ export async function runPlaylistJob(jobId: string): Promise<void> {
       throw new Error(`Job ${jobId} not found`);
     }
     
-    console.log(`[Job ${jobId}] Starting playlist generation`);
-    
-    // Wait for concurrency slot
-    await waitForConcurrencySlot(job.organization_id);
-    
-    // Update job status to running
-    await updateJob(jobId, { 
-      status: 'running', 
-      progress_pct: 0,
-      started_at: new Date().toISOString()
-    });
-    await emitEvent(jobId, job.organization_id, 'started');
+    console.log(`[Job ${jobId}] Starting playlist generation with child jobs`);
     
     // Check if this is a playlist generation job
     if (!job.params?.blueprints || !Array.isArray(job.params.blueprints)) {
       throw new Error('Invalid playlist job: missing blueprints');
     }
     
-    // Create job context and progress emitter
-    const ctx = {
-      jobId,
-      kind: 'playlist.generate' as const,
-      createdAt: job.created_at
-    };
+    const blueprints = job.params.blueprints;
+    const concurrencyLimit = job.concurrency_limit || 1;
     
-    const emit: (type: "log" | "progress", data: any) => void = (type, data) => {
-      if (type === "log") {
-        emitEvent(jobId, job!.organization_id, 'log', { message: data.msg });
-      } else if (type === "progress") {
-        const progressPct = Math.round((data.index + 1) / job!.params.blueprints.length * 100);
-        updateJob(jobId, { progress_pct: progressPct });
-        emitEvent(jobId, job!.organization_id, 'progress', { 
-          message: `Track ${data.index + 1} completed`,
-          trackId: data.trackId,
-          mp3Key: data.mp3Key
-        });
-      }
-    };
-    
-    // Run the playlist generation step
-    const result = await generatePlaylistStep(ctx, job.params, emit);
-    
-    // Update job status
+    // Update job status to running
     await updateJob(jobId, { 
-      status: 'succeeded',
-      progress_pct: 100,
-      finished_at: new Date().toISOString()
+      status: 'running', 
+      progress_pct: 0,
+      started_at: new Date().toISOString(),
+      item_count: blueprints.length,
+      completed_count: 0
+    });
+    await emitEvent(jobId, job.organization_id, 'started');
+    
+    // Create playlist shell first
+    await emitEvent(jobId, job.organization_id, 'log', { message: 'Creating playlist shell…' });
+    
+    const supabase = getSupabaseAdmin();
+    const { data: playlistRow, error: plErr } = await supabase
+      .from("playlists")
+      .insert({
+        organization_id: job.organization_id,
+        location_id: job.params.locationId ?? null,
+        name: job.params.config?.playlistTitle || `AI Playlist – ${new Date().toLocaleString()}`,
+        schedule: null,
+      })
+      .select("id")
+      .single();
+      
+    if (plErr || !playlistRow?.id) {
+      throw new Error(plErr?.message || "playlist insert failed");
+    }
+    
+    const playlistId = playlistRow.id as string;
+    await emitEvent(jobId, job.organization_id, 'log', { message: `Playlist created: ${playlistId}` });
+    
+    // Create child jobs for each track
+    const childJobIds: string[] = [];
+    
+    for (let i = 0; i < blueprints.length; i++) {
+      const blueprint = blueprints[i];
+      
+      const { data: childJob, error: childError } = await supabase
+        .from("generation_jobs")
+        .insert({
+          organization_id: job.organization_id,
+          user_id: job.user_id,
+          parent_job_id: jobId,
+          status: 'queued',
+          kind: 'track.generate',
+          params: {
+            organizationId: job.organization_id,
+            userId: job.user_id,
+            locationId: job.params.locationId,
+            playlistId: playlistId,
+            trackIndex: i,
+            blueprint: blueprint,
+            config: job.params.config
+          },
+          progress_pct: 0,
+          item_count: 1,
+          completed_count: 0,
+          concurrency_limit: 1
+        })
+        .select("id")
+        .single();
+        
+      if (childError || !childJob?.id) {
+        throw new Error(`Failed to create child job ${i}: ${childError?.message || 'unknown'}`);
+      }
+      
+      childJobIds.push(childJob.id);
+      await emitEvent(childJob.id, job.organization_id, 'queued', { 
+        message: `Track ${i + 1} queued`,
+        parentJobId: jobId,
+        trackIndex: i
+      });
+    }
+    
+    await emitEvent(jobId, job.organization_id, 'log', { 
+      message: `Created ${childJobIds.length} child jobs for playlist generation` 
     });
     
-    await emitEvent(jobId, job.organization_id, 'succeeded', {
-      message: 'Playlist generation completed',
-      playlistId: result.playlistId,
-      trackCount: result.tracks.length,
-      result: result // Store result in event payload
-    });
+    // Start processing child jobs with concurrency control
+    await dispatchChildrenUpToLimit(jobId);
     
-    console.log(`[Job ${jobId}] Playlist generation completed: ${result.playlistId}`);
+    console.log(`[Job ${jobId}] Playlist generation setup completed with ${childJobIds.length} child jobs`);
     
   } catch (error) {
     console.error(`[Job ${jobId}] Playlist generation failed:`, error);
