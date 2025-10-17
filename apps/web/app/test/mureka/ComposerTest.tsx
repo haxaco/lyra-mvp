@@ -92,6 +92,7 @@ export default function ComposerTest() {
   const [genError, setGenError] = useState<string | null>(null);
   const [playlistId, setPlaylistId] = useState<string | null>(null);
   const [playlistTracks, setPlaylistTracks] = useState<any[] | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
 
   const [logs, setLogs] = useState<string[]>([]);
   const logContainerRef = useRef<HTMLDivElement>(null);
@@ -120,6 +121,7 @@ export default function ComposerTest() {
     setPlaylistTracks(null);
     setGenError(null);
     setGenBusy(false);
+    setJobId(null);
     setLogs([]);
     if (stopRef.current) {
       stopRef.current();
@@ -202,15 +204,15 @@ export default function ComposerTest() {
     setGenError(null);
     setPlaylistId(null);
     setPlaylistTracks(null);
-    appendLog("→ Generating playlist from blueprints (sequential)…");
+    setJobId(null);
+    appendLog("→ Enqueuing playlist.generate job…");
 
     try {
+      // 1) Enqueue
       const res = await fetch(`${baseUrl}/api/compose/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          organizationId: orgId,
-          userId,
           config,
           blueprints,
         }),
@@ -218,17 +220,56 @@ export default function ComposerTest() {
       const json = await res.json();
       if (!res.ok || !json.ok) {
         setGenError(json?.error || `HTTP ${res.status}`);
-        appendLog(`✗ generation failed: ${json?.error || res.statusText}`);
+        appendLog(`✗ enqueue failed: ${json?.error || res.statusText}`);
         setGenBusy(false);
         return;
       }
-      setPlaylistId(json.playlistId);
-      setPlaylistTracks(json.tracks || []);
-      appendLog(`✓ playlist created: ${json.playlistId}`);
+      setJobId(json.jobId);
+      appendLog(`✓ job enqueued: ${json.jobId}`);
+
+      // 2) Subscribe to job SSE
+      const streamUrl = `${baseUrl}/api/jobs/${encodeURIComponent(json.jobId)}/events`;
+      const es = new EventSource(streamUrl);
+
+      es.onmessage = async (e) => {
+        try {
+          const evt = JSON.parse(e.data);
+          if (evt.type === "log") appendLog(`🔧 ${evt.data?.message || ""}`);
+          if (evt.type === "progress") appendLog(`⏩ progress: ${evt.data?.message || ""}`);
+          if (evt.type === "succeeded") {
+            appendLog("✅ job done; processing result…");
+            es.close();
+
+            // Get result from event payload
+            if (evt.data?.result?.playlistId) {
+              setPlaylistId(evt.data.result.playlistId);
+              setPlaylistTracks(evt.data.result.tracks || []);
+              appendLog(`✓ playlist created: ${evt.data.result.playlistId}`);
+            } else {
+              appendLog("⚠️ job finished but no result payload found");
+            }
+            setGenBusy(false);
+          }
+          if (evt.type === "failed") {
+            appendLog(`✗ job error: ${evt.data?.error || ""}`);
+            es.close();
+            setGenBusy(false);
+          }
+        } catch (err) {
+          appendLog(`✗ stream parse error: ${String(err)}`);
+          es.close();
+          setGenBusy(false);
+        }
+      };
+
+      es.onerror = (e) => {
+        appendLog(`✗ job SSE error`);
+        es.close();
+        setGenBusy(false);
+      };
     } catch (e: any) {
       setGenError(e?.message || String(e));
-      appendLog(`✗ generation error: ${e?.message || String(e)}`);
-    } finally {
+      appendLog(`✗ enqueue error: ${e?.message || String(e)}`);
       setGenBusy(false);
     }
   }, [orgId, userId, config, blueprints, baseUrl, appendLog]);
@@ -296,6 +337,12 @@ export default function ComposerTest() {
 
       <div className="mt-3 text-xs text-gray-500">
         Session ID: <span className="font-mono">{sessionId ?? "—"}</span>
+        {jobId && (
+          <>
+            <br />
+            Job ID: <span className="font-mono">{jobId}</span>
+          </>
+        )}
       </div>
 
       <div className="grid md:grid-cols-2 gap-4 mt-5">

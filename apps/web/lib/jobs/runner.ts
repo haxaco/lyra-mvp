@@ -17,6 +17,7 @@ import { putObject, createPresignedGetUrl } from '../r2';
 import type { JobSnapshot, JobEventType } from '../types';
 import { learnFromComposedPlaylist } from '../ai/brandLearning';
 import { ComposeConfig } from '@lyra/sdk';
+import { generatePlaylistStep } from '../../jobs/steps/generatePlaylist';
 
 const MAX_CONCURRENT_JOBS_PER_ORG = 5; // Increased to allow more concurrent jobs
 const RETRY_DELAYS = [1000, 2000, 4000]; // 1s, 2s, 4s
@@ -487,6 +488,96 @@ export async function runTrackJob(jobId: string): Promise<void> {
 }
 
 /**
+ * Run a playlist generation job
+ */
+export async function runPlaylistJob(jobId: string): Promise<void> {
+  let job: JobSnapshot | null = null;
+  
+  try {
+    // Get job details
+    job = await getJobById(jobId);
+    if (!job) {
+      throw new Error(`Job ${jobId} not found`);
+    }
+    
+    console.log(`[Job ${jobId}] Starting playlist generation`);
+    
+    // Wait for concurrency slot
+    await waitForConcurrencySlot(job.organization_id);
+    
+    // Update job status to running
+    await updateJob(jobId, { 
+      status: 'running', 
+      progress_pct: 0,
+      started_at: new Date().toISOString()
+    });
+    await emitEvent(jobId, job.organization_id, 'started');
+    
+    // Check if this is a playlist generation job
+    if (!job.params?.blueprints || !Array.isArray(job.params.blueprints)) {
+      throw new Error('Invalid playlist job: missing blueprints');
+    }
+    
+    // Create job context and progress emitter
+    const ctx = {
+      jobId,
+      kind: 'playlist.generate' as const,
+      createdAt: job.created_at
+    };
+    
+    const emit: (type: "log" | "progress", data: any) => void = (type, data) => {
+      if (type === "log") {
+        emitEvent(jobId, job!.organization_id, 'log', { message: data.msg });
+      } else if (type === "progress") {
+        const progressPct = Math.round((data.index + 1) / job!.params.blueprints.length * 100);
+        updateJob(jobId, { progress_pct: progressPct });
+        emitEvent(jobId, job!.organization_id, 'progress', { 
+          message: `Track ${data.index + 1} completed`,
+          trackId: data.trackId,
+          mp3Key: data.mp3Key
+        });
+      }
+    };
+    
+    // Run the playlist generation step
+    const result = await generatePlaylistStep(ctx, job.params, emit);
+    
+    // Update job status
+    await updateJob(jobId, { 
+      status: 'succeeded',
+      progress_pct: 100,
+      finished_at: new Date().toISOString()
+    });
+    
+    await emitEvent(jobId, job.organization_id, 'succeeded', {
+      message: 'Playlist generation completed',
+      playlistId: result.playlistId,
+      trackCount: result.tracks.length,
+      result: result // Store result in event payload
+    });
+    
+    console.log(`[Job ${jobId}] Playlist generation completed: ${result.playlistId}`);
+    
+  } catch (error) {
+    console.error(`[Job ${jobId}] Playlist generation failed:`, error);
+    
+    if (job) {
+      await updateJob(jobId, { 
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        finished_at: new Date().toISOString()
+      });
+      
+      await emitEvent(jobId, job.organization_id, 'failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+    
+    throw error;
+  }
+}
+
+/**
  * Update parent job when a child job finishes
  */
 export async function onChildFinishedUpdateParent(parentId: string): Promise<void> {
@@ -592,7 +683,21 @@ export async function startJob(jobId: string): Promise<void> {
   
   try {
     console.log(`[Job ${jobId}] Starting job processing`);
-    await runTrackJob(jobId);
+    
+    // Get job details to determine job type
+    job = await getJobById(jobId);
+    if (!job) {
+      throw new Error(`Job ${jobId} not found`);
+    }
+    
+    // Determine job type based on params
+    if (job.params?.blueprints && Array.isArray(job.params.blueprints)) {
+      // This is a playlist generation job
+      await runPlaylistJob(jobId);
+    } else {
+      // This is a track generation job
+      await runTrackJob(jobId);
+    }
   } catch (error) {
     console.error(`[Job ${jobId}] Job processing failed:`, error);
     
