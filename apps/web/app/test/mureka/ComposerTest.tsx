@@ -346,7 +346,7 @@ export default function ComposerTest() {
 
       <div className="flex flex-wrap gap-2 mt-3">
         <button 
-          className="px-3 py-1.5 rounded bg-black text-white text-sm disabled:opacity-50" 
+          className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm disabled:opacity-50 hover:bg-primary/90 transition-colors" 
           onClick={createSession}
           disabled={!orgId || !userId}
           title={!orgId || !userId ? "Waiting for user data to load" : ""}
@@ -354,21 +354,21 @@ export default function ComposerTest() {
           Create Session
         </button>
         <button
-          className="px-3 py-1.5 rounded bg-indigo-600 text-white text-sm disabled:opacity-50"
+          className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm disabled:opacity-50 hover:bg-primary/90 transition-colors"
           onClick={startStream}
           disabled={!sessionId || isStreaming}
         >
           Start Stream
         </button>
         <button
-          className="px-3 py-1.5 rounded bg-emerald-600 text-white text-sm disabled:opacity-50"
+          className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm disabled:opacity-50 hover:bg-primary/90 transition-colors"
           onClick={generateFromBlueprints}
           disabled={!config || !blueprints?.length || genBusy || !orgId || !userId}
           title={!config || !blueprints?.length ? "Need config + blueprints first" : !orgId || !userId ? "Waiting for user data" : ""}
         >
           {genBusy ? "Generating…" : "Generate Playlist From Blueprints"}
         </button>
-        <button className="px-3 py-1.5 rounded bg-gray-100 text-sm" onClick={clearAll}>
+        <button className="px-3 py-1.5 rounded bg-gray-100 text-gray-700 text-sm hover:bg-gray-200 transition-colors" onClick={clearAll}>
           Clear
         </button>
       </div>
