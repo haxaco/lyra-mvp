@@ -32,6 +32,8 @@ export default function ComposerTest() {
   const [orgId, setOrgId] = useState("");
   const [userId, setUserId] = useState("");
   const [brief, setBrief] = useState("Energetic indie pop for a retail brand launch");
+  const [model, setModel] = useState("gpt-4o-mini");
+  const [temperature, setTemperature] = useState(0.4);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -116,7 +118,11 @@ export default function ComposerTest() {
       const sid = await startComposeSession(baseUrl, {
         orgId,
         userId,
-        brief: { brief },
+        brief: { 
+          brief,
+          model,
+          temperature
+        },
       });
       setSessionId(sid);
       appendLog(`✓ Session created: ${sid}`);
@@ -298,6 +304,37 @@ export default function ComposerTest() {
           onChange={(e) => setBrief(e.target.value)}
         />
       </label>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        <label className="text-sm block">
+          Model
+          <select
+            className="mt-1 w-full border rounded px-2 py-1"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+          >
+            <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+            <option value="gpt-4o">GPT-4o (Higher Quality)</option>
+            <option value="auto">Auto (Default)</option>
+          </select>
+        </label>
+
+        <label className="text-sm block">
+          Temperature: {temperature}
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.1"
+            className="mt-1 w-full"
+            value={temperature}
+            onChange={(e) => setTemperature(parseFloat(e.target.value))}
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            0.0 (Focused) — 2.0 (Creative)
+          </div>
+        </label>
+      </div>
 
       <div className="flex flex-wrap gap-2 mt-3">
         <button 

@@ -19,6 +19,7 @@ const PlaylistBriefSchema = z.object({
   model: z.enum(["auto", "mureka-6", "mureka-7.5", "mureka-o1"]).default("auto"),
   familyFriendly: z.boolean().default(true),
   seed: z.string().optional(),
+  temperature: z.number().min(0).max(2).optional(),
 });
 
 export async function POST(req: Request) {
@@ -33,6 +34,8 @@ export async function POST(req: Request) {
       userId,
       brief: brief.brief,
       brandContextSnapshot: brand,
+      model: brief.model,
+      temperature: brief.temperature,
     });
 
     return NextResponse.json({ ok: true, sessionId });

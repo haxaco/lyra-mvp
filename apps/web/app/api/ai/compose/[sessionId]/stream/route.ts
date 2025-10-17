@@ -3,6 +3,13 @@ import { composeInStages } from "@/lib/ai/composeEngine";
 import { saveStreamEvent } from "@/lib/ai/persist";
 import { getUserAndOrg } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
 
 export async function GET(req: Request, { params }: { params: { sessionId: string } }) {
   try {
@@ -13,6 +20,19 @@ export async function GET(req: Request, { params }: { params: { sessionId: strin
 
     if (!brief) {
       return NextResponse.json({ ok: false, error: "Missing brief" }, { status: 400 });
+    }
+
+    // Load session to get model and temperature
+    const supabase = getSupabaseAdmin();
+    const { data: session, error: sessionError } = await supabase
+      .from("ai_compose_sessions")
+      .select("model, temperature")
+      .eq("id", sessionId)
+      .eq("organization_id", organizationId)
+      .single();
+
+    if (sessionError || !session) {
+      return NextResponse.json({ ok: false, error: "Session not found" }, { status: 404 });
     }
 
     const encoder = new TextEncoder();
@@ -30,8 +50,9 @@ export async function GET(req: Request, { params }: { params: { sessionId: strin
               brief,
               durationSec: 180,
               n: 6,
-              model: "auto" as const,
-              familyFriendly: true
+              model: (session.model as any) || "auto",
+              familyFriendly: true,
+              temperature: session.temperature
             },
           })) {
             await saveStreamEvent({
