@@ -3,6 +3,8 @@ import "server-only";
 import { z } from "zod";
 import { getOpenAI } from "./openai";
 import { loadBrandContext } from "./brandContext";
+import { prompts } from "./prompts";
+import { resolveModel, DEFAULT_MODEL_ID } from "./models";
 
 // Local schemas to avoid client/server import issues
 const ModelIdSchema = z.enum(["auto", "mureka-6", "mureka-7.5", "mureka-o1"]);
@@ -23,6 +25,7 @@ const PlaylistBriefSchema = z.object({
   model: ModelIdSchema.default("auto"),
   familyFriendly: z.boolean().default(true),
   seed: z.string().optional(),
+  temperature: z.number().min(0).max(2).optional(),
 });
 
 const ComposeSuggestionCardSchema = z.object({
@@ -82,38 +85,24 @@ export async function* composeInStages(args: {
   yield { type: "message", data: { text: "Analyzing brief & brand context…" } };
 
   // 1) Suggestions
+  const modelId = args.briefInput?.model; // may be undefined → fallback to default
   const suggestions = await getJson(oai, {
-    system: `You are a B2B in-store music programmer. Return JSON { "suggestions": [...] } where each suggestion has: title, genres[], bpmRange [min,max], energy (1..10), moods[], notes[]. Keep it suitable for public venues.
-
-IMPORTANT: 
-- Return exactly 2-3 suggestions (no more, no less)
-- bpmRange must be an array [min, max] not an object
-- Example JSON: "bpmRange": [120, 140] not "bpmRange": {"min": 120, "max": 140}`,
+    system: prompts.suggestions,
     user: { brief: args.briefInput, brand },
-    schema: z.object({ suggestions: z.array(ComposeSuggestionCardSchema).min(2).max(3) }),
-    temperature: 0.7,
+    schema: z.object({ suggestions: z.array(ComposeSuggestionCardSchema).min(1).max(3) }),
+    temperature: args.briefInput?.temperature ?? 0.7,
+    modelId,
   });
   yield { type: "suggestions", data: { suggestions: suggestions.suggestions } };
 
   // 2) Config draft
   yield { type: "message", data: { text: "Drafting normalized config…" } };
   const cfg = await getJson(oai, {
-    system: `Create a single normalized playlist config. Return JSON with these exact fields:
-- genres: array of strings (1-5 items)
-- bpmRange: array [min, max] where min and max are numbers 40-240
-- energy: number 1-10
-- moods: array of strings (1-6 items)
-- durationSec: number 30-600 (default 180)
-- tracks: number 1-10 (default 6)
-- familyFriendly: boolean (default true)
-- model: "auto" (default)
-- allowExplicit: boolean (default false)
-- playlistTitle: string (optional)
-
-Example JSON: {"genres": ["house", "funk"], "bpmRange": [120, 140], "energy": 8, "moods": ["energetic", "groovy"], "durationSec": 180, "tracks": 6, "familyFriendly": true, "model": "auto", "allowExplicit": false}`,
+    system: prompts.configDraft,
     user: { brief: args.briefInput, brand, suggestions: suggestions.suggestions },
     schema: ComposeConfigSchema,
-    temperature: 0.4,
+    temperature: args.briefInput?.temperature ?? 0.4,
+    modelId,
   });
   
   // Ensure all required fields have values
@@ -132,26 +121,15 @@ Example JSON: {"genres": ["house", "funk"], "bpmRange": [120, 140], "energy": 8,
   // 3) Blueprints
   yield { type: "message", data: { text: "Composing per-track blueprints…" } };
   const bp = await getJson(oai, {
-    system: `Given a playlist config, produce per-track blueprints. Return a JSON array of objects with these exact fields:
-- index: number (0-based)
-- title: string (1-100 chars)
-- prompt: string (1-1024 chars)
-- lyrics: string (optional, default "[Instrumental only]")
-- bpm: number (40-240)
-- genre: string (1-50 chars)
-- energy: number (1-10)
-- key: string (optional, max 3 chars like "C", "Am")
-- model: "auto" (default)
-- durationSec: number (30-600, default 180)
-
-Return the JSON as a direct array: [{"index": 0, "title": "Opening Track", "prompt": "Upbeat house with funky bassline", "lyrics": "[Instrumental only]", "bpm": 128, "genre": "house", "energy": 8, "model": "auto", "durationSec": 180}]`,
+    system: prompts.blueprints,
     user: { config: safeCfg, brand },
     schema: z.union([
       z.array(TrackBlueprintSchema).min(1).max(10),
       z.object({ blueprints: z.array(TrackBlueprintSchema).min(1).max(10) }),
       z.object({ tracks: z.array(TrackBlueprintSchema).min(1).max(10) }),
     ]),
-    temperature: 0.5,
+    temperature: args.briefInput?.temperature ?? 0.5,
+    modelId,
   });
 
   const list = Array.isArray(bp) 
@@ -189,11 +167,13 @@ async function getJson<T>(
     user: any;
     schema: z.ZodType<T>;
     temperature?: number;
+    modelId?: string;
   }
 ): Promise<T> {
+  const model = resolveModel(opts.modelId ?? DEFAULT_MODEL_ID);
   const res = await oai.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: opts.temperature ?? 0.4,
+    model: model.apiModel,
+    temperature: opts.temperature ?? model.defaultTemperature,
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: opts.system },

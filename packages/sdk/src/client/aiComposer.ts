@@ -1,6 +1,11 @@
 // packages/sdk/src/client/aiComposer.ts
 export async function startComposeSession(baseUrl: string, params: {
-  orgId: string; userId: string; brief: { brief: string };
+  orgId: string; userId: string; brief: { 
+    brief: string; 
+    model?: string; 
+    temperature?: number;
+    [key: string]: any; // allow other brief fields
+  };
 }) {
   const res = await fetch(
     `${baseUrl}/api/ai/compose?orgId=${encodeURIComponent(params.orgId)}&userId=${encodeURIComponent(params.userId)}`,

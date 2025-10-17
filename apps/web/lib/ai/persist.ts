@@ -14,6 +14,9 @@ export async function createComposeSession(args: {
   userId: string;
   brief: string;
   brandContextSnapshot?: any;
+  model?: string;
+  temperature?: number;
+  promptOverrides?: Record<string, string>; // keep for future (Option C)
 }) {
   const supabase = sb();
   const { data, error } = await supabase
@@ -23,6 +26,9 @@ export async function createComposeSession(args: {
       user_id: args.userId,
       brief: args.brief,
       brand_context: args.brandContextSnapshot ?? null,
+      model: args.model ?? null,
+      temperature: typeof args.temperature === "number" ? args.temperature : null,
+      prompt_overrides: args.promptOverrides ?? null,
     })
     .select("id")
     .single();
