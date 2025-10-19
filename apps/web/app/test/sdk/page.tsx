@@ -13,7 +13,7 @@ import {
   useDeletePlaylist,
   useCreateJob,
 } from "@lyra/sdk";
-import { Button, Card, CardHeader, CardTitle, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@lyra/ui";
+import { Button, Card, CardHeader, CardTitle, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger, PlaylistComposer } from "@lyra/ui";
 import { PlaylistCard, SongLibrary } from "@lyra/ui/dist/components";
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -331,6 +331,27 @@ export default function SDKTestPage() {
             Testing @lyra/sdk hooks with React Query
           </p>
         </div>
+
+        {/* PlaylistComposer Component Test */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span>🎵</span>
+              PlaylistComposer Component
+            </CardTitle>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                Test the AI-powered PlaylistComposer with real-time generation and animations.
+              </p>
+              <PlaylistComposer 
+                onPlaylistGenerated={(playlist) => {
+                  console.log('Generated playlist:', playlist);
+                  alert(`Playlist generated: ${playlist.name || 'Untitled Playlist'}`);
+                }}
+              />
+            </CardContent>
+          </CardHeader>
+        </Card>
 
             {/* JSON Debug Sections */}
             <Collapsible open={isRawDataOpen} onOpenChange={setIsRawDataOpen}>
