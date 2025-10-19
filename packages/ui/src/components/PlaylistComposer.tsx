@@ -277,6 +277,13 @@ const INITIAL_CHAT_MESSAGES: AIMessage[] = [
 ];
 
 export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ onPlaylistGenerated }) => {
+  // Hydration check
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // State
   const [state, setState] = useState<PlaylistState>('idle');
   const [brief, setBrief] = useState('Morning energy mix for a cozy neighborhood cafe');
@@ -515,6 +522,18 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ onPlaylistGe
       type: 'analysis'
     });
   };
+
+  // Prevent hydration mismatch by only rendering on client
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#1A1816] via-[#242220] to-[#1A1816] pb-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white/70">Loading Playlist Composer...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1A1816] via-[#242220] to-[#1A1816] pb-8">
