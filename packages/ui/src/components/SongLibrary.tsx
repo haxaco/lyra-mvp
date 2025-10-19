@@ -459,7 +459,7 @@ export const SongLibrary: React.FC<SongLibraryProps> = ({
                   <TableHead>Playlist</TableHead>
                   <TableHead>Genre</TableHead>
                   <TableHead>Mood</TableHead>
-                  <TableHead>Provider</TableHead>
+                  <TableHead>Model</TableHead>
                   <TableHead>Duration</TableHead>
                   <TableHead>Plays</TableHead>
                   <TableHead className="w-12"></TableHead>
@@ -509,16 +509,32 @@ export const SongLibrary: React.FC<SongLibraryProps> = ({
 
                     {/* Genre */}
                     <TableCell>
-                      <Badge variant="outline" className="border-primary/30 text-foreground">
-                        {song.genre}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {song.genre.split(',').slice(0, 2).map((genre: string, idx: number) => (
+                          <Badge 
+                            key={idx}
+                            variant="outline" 
+                            className="border-primary/30 text-foreground text-xs"
+                          >
+                            {genre.trim()}
+                          </Badge>
+                        ))}
+                      </div>
                     </TableCell>
 
                     {/* Mood */}
                     <TableCell>
-                      <Badge variant="secondary" className="bg-secondary/50 text-secondary-foreground">
-                        {song.mood}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {song.mood.split(',').slice(0, 2).map((mood: string, idx: number) => (
+                          <Badge 
+                            key={idx}
+                            variant="secondary" 
+                            className="bg-secondary/50 text-secondary-foreground text-xs"
+                          >
+                            {mood.trim()}
+                          </Badge>
+                        ))}
+                      </div>
                     </TableCell>
 
                     {/* Provider */}

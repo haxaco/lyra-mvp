@@ -2,19 +2,44 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getOrgClientAndId } from "@/lib/org";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { supa, orgId } = await getOrgClientAndId();
     if (!orgId) return NextResponse.json({ ok:false, error:"No org in session" }, { status: 401 });
 
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '100');
+    const offset = (page - 1) * limit;
+
+    // Get total count
+    const { count, error: countError } = await supa
+      .from("tracks")
+      .select("*", { count: 'exact', head: true });
+
     const { data, error } = await supa
       .from("tracks")
-      .select("id, title, duration_seconds, r2_key, flac_r2_key, created_at, meta, artist, mood, play_count, user_liked, genre, provider_id")
+      .select("id, title, duration_seconds, r2_key, flac_r2_key, created_at, meta, artist, mood, play_count, user_liked, genre, provider_id, blueprint")
       .order("created_at", { ascending: false })
-      .limit(100);
+      .range(offset, offset + limit - 1);
     if (error) throw error;
 
-    return NextResponse.json({ ok:true, items: data });
+    const totalPages = count ? Math.ceil(count / limit) : 1;
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return NextResponse.json({ 
+      ok: true, 
+      items: data,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages,
+        hasNextPage,
+        hasPrevPage
+      }
+    });
   } catch (e:any) {
     return NextResponse.json({ ok:false, error: e.message || String(e) }, { status: 500 });
   }

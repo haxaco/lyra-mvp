@@ -7,6 +7,9 @@ export async function GET(request: Request) {
     // TODO: Replace with proper user authentication and org-based authorization
     const { searchParams } = new URL(request.url);
     const orgId = searchParams.get('organizationId') || process.env.TEST_ORG_ID;
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = (page - 1) * limit;
     
     if (!orgId) {
       return NextResponse.json(
@@ -31,10 +34,10 @@ export async function GET(request: Request) {
     
     const { data, error } = await supabase
       .from("tracks")
-      .select("id, organization_id, r2_key, flac_r2_key, duration_seconds, created_at, meta, title")
+      .select("id, organization_id, r2_key, flac_r2_key, duration_seconds, created_at, meta, title, blueprint, genre, mood, artist, play_count, user_liked, provider_id")
       .eq('organization_id', orgId)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error("[tracks/list] query error:", error);
@@ -69,6 +72,13 @@ export async function GET(request: Request) {
             created_at: row.created_at,
             title: row.title,
             meta: row.meta,
+            blueprint: row.blueprint,
+            genre: row.genre,
+            mood: row.mood,
+            artist: row.artist,
+            play_count: row.play_count,
+            user_liked: row.user_liked,
+            provider_id: row.provider_id,
             mp3: row.r2_key ? { key: row.r2_key, url: mp3Url } : null,
             flac: row.flac_r2_key ? { key: row.flac_r2_key, url: flacUrl } : null,
           };
@@ -82,6 +92,13 @@ export async function GET(request: Request) {
             created_at: row.created_at,
             title: row.title,
             meta: row.meta,
+            blueprint: row.blueprint,
+            genre: row.genre,
+            mood: row.mood,
+            artist: row.artist,
+            play_count: row.play_count,
+            user_liked: row.user_liked,
+            provider_id: row.provider_id,
             mp3: null,
             flac: null,
           };
@@ -89,9 +106,24 @@ export async function GET(request: Request) {
       })
     );
 
-    console.log(`[tracks/list] returning ${items.length} items`);
+    console.log(`[tracks/list] returning ${items.length} items (page ${page}, limit ${limit})`);
 
-    return NextResponse.json({ ok: true, items }, {
+    const totalPages = count ? Math.ceil(count / limit) : 1;
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    return NextResponse.json({ 
+      ok: true, 
+      items,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages,
+        hasNextPage,
+        hasPrevPage
+      }
+    }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
         'Pragma': 'no-cache',

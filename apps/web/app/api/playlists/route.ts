@@ -15,7 +15,7 @@ export async function GET() {
 
     const { data, error } = await supa
       .from("playlists")
-      .select("id, name, created_at, track_count, total_duration_seconds")
+      .select("id, name, created_at, track_count, total_duration_seconds, config, job_id")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw error;

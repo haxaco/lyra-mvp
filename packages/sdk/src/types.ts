@@ -9,6 +9,7 @@ export type Track = {
   flac_r2_key?: string | null;
   created_at: string;
   meta?: any;
+  blueprint?: any; // Complete TrackBlueprint JSON
 };
 
 export type Playlist = {
@@ -17,6 +18,10 @@ export type Playlist = {
   created_at: string;
   location_id?: string | null;
   schedule?: any;
+  config?: any; // Full ComposeConfig JSON
+  job_id?: string | null; // Reference to generation job
+  track_count?: number;
+  total_duration_seconds?: number;
 };
 
 export type PlaylistDetail = Playlist & {

@@ -48,6 +48,12 @@ const ComposeConfigSchema = z.object({
   familyFriendly: z.boolean().default(true),
   model: ModelIdSchema.default("auto"),
   allowExplicit: z.boolean().default(false),
+  // New enhanced fields from improved prompts
+  description: z.string().optional(),
+  productionStyle: z.string().optional(),
+  dynamicFlow: z.string().optional(),
+  vocalApproach: z.string().optional(),
+  targetContext: z.string().optional(),
 });
 
 const TrackBlueprintSchema = z.object({

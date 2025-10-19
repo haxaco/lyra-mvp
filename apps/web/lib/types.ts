@@ -47,6 +47,7 @@ export interface TrackInsert {
   artist?: string;
   meta?: any;
   provider_id?: string;
+  blueprint?: any; // Complete TrackBlueprint JSON
 }
 
 export interface MurekaCreateParams {

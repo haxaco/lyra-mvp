@@ -2,7 +2,7 @@ import React from 'react';
 import { Card } from '../primitives/card';
 import { Button } from '../primitives/button';
 import { Badge } from '../primitives/badge';
-import { Play, Clock, Music, MoreVertical } from 'lucide-react';
+import { Play, Clock, Music, MoreVertical, Trash2 } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface PlaylistCardProps {
@@ -15,6 +15,7 @@ interface PlaylistCardProps {
   imageUrl?: string;
   onPlay?: () => void;
   onViewDetails?: () => void;
+  onDelete?: () => void;
   variant?: 'default' | 'compact';
 }
 
@@ -27,6 +28,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
   imageUrl,
   onPlay,
   onViewDetails,
+  onDelete,
   variant = 'default'
 }) => {
   if (variant === 'compact') {
@@ -142,16 +144,28 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
           </div>
         )}
 
-        {/* Action */}
-        {onViewDetails && (
-          <Button 
-            variant="outline" 
-            className="w-full border-primary/20 hover:bg-primary/5"
-            onClick={onViewDetails}
-          >
-            View Details
-          </Button>
-        )}
+        {/* Actions */}
+        <div className="space-y-2">
+          {onViewDetails && (
+            <Button 
+              variant="outline" 
+              className="w-full border-primary/20 hover:bg-primary/5"
+              onClick={onViewDetails}
+            >
+              View Details
+            </Button>
+          )}
+          {onDelete && (
+            <Button 
+              variant="outline" 
+              className="w-full border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700"
+              onClick={onDelete}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Playlist
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   );

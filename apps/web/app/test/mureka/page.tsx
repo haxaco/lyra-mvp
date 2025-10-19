@@ -53,6 +53,8 @@ export default function MurekaTestPage() {
   const [loading, setLoading] = useState(false);
   const [log, setLog] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<any>(null);
 
   // Music Player state
   const [currentTrack, setCurrentTrack] = useState<any>(null);
@@ -74,10 +76,55 @@ export default function MurekaTestPage() {
       return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     };
 
-    // Extract metadata
+    // Extract metadata, prioritize blueprint data
     const meta = dbItem.meta || {};
-    const genre = meta.genre || 'Electronic';
-    const mood = meta.mood || 'Upbeat';
+    const blueprint = (dbItem as any).blueprint || {};
+    
+    // Use blueprint data first, then fallback to meta, then defaults
+    const baseGenre = blueprint.genre || meta.genre || 'Electronic';
+    
+    // Derive mood from energy level and genre since TrackBlueprint doesn't have mood
+    const deriveMood = (energy: number, genre: string) => {
+      if (energy >= 8) return 'Energetic';
+      if (energy >= 6) return 'Upbeat';
+      if (energy >= 4) return 'Moderate';
+      if (energy >= 2) return 'Chill';
+      return 'Calm';
+    };
+    
+    const energy = blueprint.energy || meta.energy || 5;
+    const baseMood = blueprint.mood || meta.mood || deriveMood(energy, baseGenre);
+    
+    // Create multiple genres and moods for display
+    const createMultipleGenres = (genre: string) => {
+      const genreMap: Record<string, string[]> = {
+        'house': ['House', 'Electronic'],
+        'electronic': ['Electronic', 'Synth'],
+        'jazz': ['Jazz', 'Smooth'],
+        'pop': ['Pop', 'Contemporary'],
+        'rock': ['Rock', 'Alternative'],
+        'hip-hop': ['Hip-Hop', 'Urban'],
+        'ambient': ['Ambient', 'Atmospheric'],
+        'classical': ['Classical', 'Orchestral'],
+        'funk': ['Funk', 'Groove'],
+        'reggae': ['Reggae', 'Tropical']
+      };
+      return genreMap[genre.toLowerCase()] || [genre, 'Music'];
+    };
+    
+    const createMultipleMoods = (mood: string, energy: number) => {
+      const moodMap: Record<string, string[]> = {
+        'energetic': ['Energetic', 'Dynamic'],
+        'upbeat': ['Upbeat', 'Positive'],
+        'moderate': ['Moderate', 'Balanced'],
+        'chill': ['Chill', 'Relaxed'],
+        'calm': ['Calm', 'Peaceful']
+      };
+      return moodMap[mood.toLowerCase()] || [mood, energy >= 6 ? 'Active' : 'Mellow'];
+    };
+    
+    const genre = createMultipleGenres(baseGenre).join(', ');
+    const mood = createMultipleMoods(baseMood, energy).join(', ');
     const provider = meta.provider || 'mureka';
 
     return {
@@ -145,57 +192,37 @@ export default function MurekaTestPage() {
       return;
     }
 
-    // Find the corresponding DB item
+    // Find the corresponding DB item in current page data
     const dbItem = dbItems.find(item => item.id === track.id);
     if (dbItem) {
-      try {
-        // Generate fresh signed URLs for audio playback
-        const response = await fetch(`/api/tracks/list?organizationId=${organizationId}&_t=${Date.now()}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-          }
-        });
-        const data = await response.json();
-        
-        if (data.ok && data.items) {
-          // Find the updated track with fresh URLs
-          const updatedTrack = data.items.find((t: any) => t.id === track.id);
-          if (updatedTrack) {
-            const musicPlayerTrack = {
-              id: updatedTrack.id,
-              title: updatedTrack.title || 'Untitled Track',
-              artist: 'User',
-              album: 'Generated Tracks',
-              coverArt: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop',
-              duration: updatedTrack.duration_seconds || 180,
-              audioUrl: updatedTrack.mp3?.url || null,
-            };
-            setCurrentTrack(musicPlayerTrack);
-            console.log('Playing track with fresh URL:', musicPlayerTrack);
-          }
-        }
-      } catch (error) {
-        console.error('Error refreshing track URL:', error);
-        // Fallback to original track data
-        const musicPlayerTrack = transformDbItemForMusicPlayer(dbItem);
-        setCurrentTrack(musicPlayerTrack);
-        console.log('Playing track with original URL:', musicPlayerTrack);
-      }
+      // Use the track data directly from current page - it already has fresh URLs
+      const musicPlayerTrack = {
+        id: dbItem.id,
+        title: dbItem.title || 'Untitled Track',
+        artist: 'User',
+        album: 'Generated Tracks',
+        coverArt: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop',
+        duration: dbItem.duration_seconds || 180,
+        audioUrl: dbItem.mp3?.url || null,
+      };
+      setCurrentTrack(musicPlayerTrack);
+      console.log('Playing track:', musicPlayerTrack);
+    } else {
+      console.error('Track not found in current page data:', track.id);
     }
   };
 
 
 
 
-  const refreshFromDb = useCallback(async () => {
+  const refreshFromDb = useCallback(async (page: number = 1) => {
     const orgIdToUse = organizationId || process.env.NEXT_PUBLIC_TEST_ORG_ID;
     if (!orgIdToUse) {
       console.error('[mureka] no organization ID available for tracks/list');
       setError('No organization ID set. Please enter one in the form or set TEST_ORG_ID env var.');
       return;
     }
-    const url = `/api/tracks/list?organizationId=${encodeURIComponent(orgIdToUse)}&_t=${Date.now()}`;
+    const url = `/api/tracks/list?organizationId=${encodeURIComponent(orgIdToUse)}&page=${page}&limit=50&_t=${Date.now()}`;
     const res = await fetch(url, {
       cache: 'no-store', // Prevent caching
       headers: {
@@ -205,7 +232,9 @@ export default function MurekaTestPage() {
     const json = await res.json();
     if (json.ok) {
       setDbItems(json.items || []);
-      console.log('[mureka] refreshed tracks from DB with fresh URLs');
+      setPagination(json.pagination || null);
+      setCurrentPage(page);
+      console.log('[mureka] refreshed tracks from DB with fresh URLs', { page, total: json.pagination?.total });
     } else {
       console.error('[mureka] error fetching tracks:', json.error);
       setError(json.error || 'Failed to fetch tracks');
@@ -383,14 +412,73 @@ export default function MurekaTestPage() {
 
       {/* Generated Tracks */}
       <div className="w-full max-w-6xl">
-        <h2 className="text-2xl font-semibold mb-6">Generated Tracks</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-semibold">Generated Tracks</h2>
+          {pagination && (
+            <div className="text-sm text-muted-foreground">
+              Showing {((currentPage - 1) * 50) + 1}-{Math.min(currentPage * 50, pagination.total)} of {pagination.total} tracks
+            </div>
+          )}
+        </div>
         {dbItems.length > 0 ? (
-          <SongLibrary 
-            songs={dbItems.map(transformDbItemForSongLibrary)}
-            onPlayTrack={handleTrackPlay}
-            currentTrack={currentTrack}
-            isPlaying={isPlaying}
-          />
+          <>
+            <SongLibrary 
+              songs={dbItems.map(transformDbItemForSongLibrary)}
+              onPlayTrack={handleTrackPlay}
+              currentTrack={currentTrack}
+              isPlaying={isPlaying}
+            />
+            
+            {/* Pagination Controls */}
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-6">
+                <button
+                  onClick={() => refreshFromDb(currentPage - 1)}
+                  disabled={!pagination.hasPrevPage}
+                  className="px-3 py-2 text-sm border border-border rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => refreshFromDb(pageNum)}
+                        className={`px-3 py-2 text-sm border rounded-md ${
+                          pageNum === currentPage
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'border-border hover:bg-muted'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                <button
+                  onClick={() => refreshFromDb(currentPage + 1)}
+                  disabled={!pagination.hasNextPage}
+                  className="px-3 py-2 text-sm border border-border rounded-md hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-12 text-muted-foreground">
             <Music className="w-12 h-12 mx-auto mb-4 opacity-50" />

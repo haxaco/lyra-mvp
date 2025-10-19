@@ -60,6 +60,12 @@ export const ComposeConfigSchema = z.object({
   model: ModelIdSchema.default("auto"),
   /** NEW: per-playlist override */
   allowExplicit: z.boolean().default(false),
+  // New enhanced fields from improved prompts
+  description: z.string().optional(),
+  productionStyle: z.string().optional(),
+  dynamicFlow: z.string().optional(),
+  vocalApproach: z.string().optional(),
+  targetContext: z.string().optional(),
 });
 export type ComposeConfig = z.infer<typeof ComposeConfigSchema>;
 
