@@ -18,6 +18,12 @@ const ComposeConfigSchema = z.object({
   familyFriendly: z.boolean().default(true),
   model: ModelIdSchema.default("auto"),
   allowExplicit: z.boolean().default(false),
+  // New enhanced fields from improved prompts
+  description: z.string().optional(),
+  productionStyle: z.string().optional(),
+  dynamicFlow: z.string().optional(),
+  vocalApproach: z.string().optional(),
+  targetContext: z.string().optional(),
 });
 
 const TrackBlueprintSchema = z.object({
@@ -182,6 +188,14 @@ export function safeComposeConfig(
     return t.slice(0, 50);
   };
 
+  const cleanText = (text: string | undefined, maxLength: number = 500) => {
+    if (!text) return text;
+    let t = sanitizePrompt(text);
+    t = stripBrandBannedTerms(t, bannedTerms);
+    if (policy.applyGenericProfanity) t = stripGenericProfanity(t);
+    return t.slice(0, maxLength);
+  };
+
   return {
     playlistTitle,
     genres: genres.map(cleanGenre),
@@ -193,6 +207,12 @@ export function safeComposeConfig(
     familyFriendly: !!input.familyFriendly,
     model: input.model ?? "auto",
     allowExplicit: policy.allowExplicit, // normalized effective flag
+    // New enhanced fields
+    description: cleanText(input.description, 1000),
+    productionStyle: cleanText(input.productionStyle, 500),
+    dynamicFlow: cleanText(input.dynamicFlow, 500),
+    vocalApproach: cleanText(input.vocalApproach, 500),
+    targetContext: cleanText(input.targetContext, 500),
   };
 }
 

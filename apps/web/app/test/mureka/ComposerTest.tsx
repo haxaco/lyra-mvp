@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 // Import from the built SDK
-import { startComposeSession, streamComposeSession } from "@lyra/sdk";
+import { startComposeSession, streamComposeSession, useLiveCompose } from "@lyra/sdk";
 
 type StreamEvent =
   | { type: "message"; data: { text: string } }
@@ -34,13 +34,14 @@ export default function ComposerTest() {
   const [brief, setBrief] = useState("Energetic indie pop for a retail brand launch");
   const [model, setModel] = useState("gpt-4o-mini");
   const [temperature, setTemperature] = useState(0.4);
+  const [useLiveMode, setUseLiveMode] = useState(true);
 
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [isStreaming, setIsStreaming] = useState(false);
-
-  const [suggestions, setSuggestions] = useState<any[] | null>(null);
-  const [config, setConfig] = useState<any | null>(null);
-  const [blueprints, setBlueprints] = useState<any[] | null>(null);
+  // Legacy mode state (for non-live mode)
+  const [legacySessionId, setLegacySessionId] = useState<string | null>(null);
+  const [legacyIsStreaming, setLegacyIsStreaming] = useState(false);
+  const [legacySuggestions, setLegacySuggestions] = useState<any[] | null>(null);
+  const [legacyConfig, setLegacyConfig] = useState<any | null>(null);
+  const [legacyBlueprints, setLegacyBlueprints] = useState<any[] | null>(null);
 
   const [genBusy, setGenBusy] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -53,6 +54,28 @@ export default function ComposerTest() {
   const stopRef = useRef<null | (() => void)>(null);
 
   const baseUrl = useMemo(() => BASE.replace(/\/$/, ""), []);
+
+  // Live compose hook
+  const {
+    sessionId,
+    isStreaming,
+    suggestions,
+    config,
+    blueprints,
+    isUpdating,
+    error: liveError,
+    startCompose,
+    updateBrief,
+    clearAll: clearLiveAll,
+  } = useLiveCompose({
+    baseUrl,
+    orgId,
+    userId,
+    debounceMs: 1500,
+    onComplete: (blueprints: any[]) => {
+      appendLog(`🎵 Live composition complete with ${blueprints.length} blueprints`);
+    },
+  });
 
   // Load user and organization data
   useEffect(() => {
@@ -90,58 +113,81 @@ export default function ComposerTest() {
   }, []);
 
   const clearAll = useCallback(() => {
-    setSessionId(null);
-    setIsStreaming(false);
-    setSuggestions(null);
-    setConfig(null);
-    setBlueprints(null);
-    setPlaylistId(null);
-    setPlaylistTracks(null);
-    setGenError(null);
-    setGenBusy(false);
-    setJobId(null);
-    setLogs([]);
-    if (stopRef.current) {
-      stopRef.current();
-      stopRef.current = null;
+    if (useLiveMode) {
+      clearLiveAll();
+    } else {
+      // Legacy clear logic for non-live mode
+      setLegacySessionId(null);
+      setLegacyIsStreaming(false);
+      setLegacySuggestions(null);
+      setLegacyConfig(null);
+      setLegacyBlueprints(null);
+      setPlaylistId(null);
+      setPlaylistTracks(null);
+      setGenError(null);
+      setGenBusy(false);
+      setJobId(null);
+      setLogs([]);
+      if (stopRef.current) {
+        stopRef.current();
+        stopRef.current = null;
+      }
     }
-  }, []);
+  }, [useLiveMode, clearLiveAll]);
 
   const createSession = useCallback(async () => {
     if (!orgId || !userId || !brief) {
       alert("Please enter orgId, userId, and brief.");
       return;
     }
-    clearAll();
-    appendLog("→ Creating session…");
-    try {
-      const sid = await startComposeSession(baseUrl, {
-        orgId,
-        userId,
-        brief: { 
-          brief,
-          model,
-          temperature
-        },
-      });
-      setSessionId(sid);
-      appendLog(`✓ Session created: ${sid}`);
-    } catch (e: any) {
-      appendLog(`✗ Create session failed: ${e?.message || e}`);
+    
+    if (useLiveMode) {
+      // Use live compose
+      appendLog("→ Starting live composition…");
+      try {
+        await startCompose(brief, model, temperature);
+        appendLog("✓ Live composition started");
+      } catch (e: any) {
+        appendLog(`✗ Live composition failed: ${e?.message || e}`);
+      }
+    } else {
+      // Legacy mode
+      clearAll();
+      appendLog("→ Creating session…");
+      try {
+        const sid = await startComposeSession(baseUrl, {
+          orgId,
+          userId,
+          brief: { 
+            brief,
+            model,
+            temperature
+          },
+        });
+        setLegacySessionId(sid);
+        appendLog(`✓ Session created: ${sid}`);
+      } catch (e: any) {
+        appendLog(`✗ Create session failed: ${e?.message || e}`);
+      }
     }
-  }, [orgId, userId, brief, baseUrl, appendLog, clearAll]);
+  }, [orgId, userId, brief, baseUrl, appendLog, clearAll, useLiveMode, startCompose, model, temperature]);
 
   const startStream = useCallback(async () => {
-    if (!sessionId || !orgId || !userId) {
+    if (useLiveMode) {
+      appendLog("→ Live mode: Stream is automatic, just update the brief to see changes");
+      return;
+    }
+    
+    if (!legacySessionId || !orgId || !userId) {
       alert("Missing sessionId/orgId/userId.");
       return;
     }
-    if (isStreaming) return;
-    setIsStreaming(true);
+    if (legacyIsStreaming) return;
+    setLegacyIsStreaming(true);
     appendLog("→ Opening SSE stream…");
 
     stopRef.current = streamComposeSession(baseUrl, {
-      sessionId,
+      sessionId: legacySessionId,
       orgId,
       userId,
       brief,
@@ -151,31 +197,31 @@ export default function ComposerTest() {
         if (evt.type === "message") appendLog(`🧠 ${evt.data?.text ?? ""}`);
         if (evt.type === "suggestions") {
           appendLog("✨ suggestions received");
-          setSuggestions(evt.data?.suggestions ?? null);
+          setLegacySuggestions(evt.data?.suggestions ?? null);
         }
         if (evt.type === "config_draft") {
           appendLog("🧩 config draft received");
-          setConfig(evt.data?.config ?? null);
+          setLegacyConfig(evt.data?.config ?? null);
         }
         if (evt.type === "blueprints") {
           appendLog(`🎵 blueprints received (${(evt.data?.blueprints ?? []).length})`);
-          setBlueprints(evt.data?.blueprints ?? null);
+          setLegacyBlueprints(evt.data?.blueprints ?? null);
         }
         if (evt.type === "done") {
           appendLog("✅ composition complete");
-          setIsStreaming(false);
+          setLegacyIsStreaming(false);
           stopRef.current?.();
           stopRef.current = null;
         }
       },
       onError: (err: any) => {
         appendLog(`⚠️ stream error: ${String((err as any)?.message || err)}`);
-        setIsStreaming(false);
+        setLegacyIsStreaming(false);
         stopRef.current?.();
         stopRef.current = null;
       },
     });
-  }, [sessionId, orgId, userId, brief, baseUrl, isStreaming, appendLog]);
+  }, [legacySessionId, orgId, userId, brief, baseUrl, legacyIsStreaming, appendLog, useLiveMode]);
 
   const generateFromBlueprints = useCallback(async () => {
     if (!orgId || !userId || !config || !blueprints?.length) {
@@ -265,7 +311,10 @@ export default function ComposerTest() {
     <div className="border rounded-lg p-4 bg-white/70 mt-10 shadow-sm">
       <h2 className="text-lg font-semibold mb-2">🎧 AI Composer Test</h2>
       <p className="text-sm text-gray-600 mb-4">
-        Create a compose session → stream staged events → then generate a real playlist (Mureka → R2 → DB).
+        {useLiveMode 
+          ? "Live Mode: Start composing and watch suggestions update in real-time as you type!"
+          : "Legacy Mode: Create a compose session → stream staged events → then generate a real playlist (Mureka → R2 → DB)."
+        }
       </p>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -301,11 +350,36 @@ export default function ComposerTest() {
         <textarea
           className="mt-1 w-full border rounded px-2 py-1 min-h-[70px]"
           value={brief}
-          onChange={(e) => setBrief(e.target.value)}
+          onChange={(e) => {
+            setBrief(e.target.value);
+            if (useLiveMode && sessionId) {
+              updateBrief(e.target.value);
+            }
+          }}
         />
+        {useLiveMode && sessionId && (
+          <div className="text-xs text-blue-600 mt-1">
+            {isUpdating ? "🔄 Updating suggestions and config..." : "💡 Type to see live updates"}
+          </div>
+        )}
+        {useLiveMode && !sessionId && (
+          <div className="text-xs text-gray-500 mt-1">
+            💡 Enable Live Mode and click "Start Live Compose" for real-time updates as you type
+          </div>
+        )}
       </label>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+        <label className="text-sm block">
+          <input
+            type="checkbox"
+            checked={useLiveMode}
+            onChange={(e) => setUseLiveMode(e.target.checked)}
+            className="mr-2"
+          />
+          Live Mode (Conversational)
+        </label>
+
         <label className="text-sm block">
           Model
           <select
@@ -343,15 +417,17 @@ export default function ComposerTest() {
           disabled={!orgId || !userId}
           title={!orgId || !userId ? "Waiting for user data to load" : ""}
         >
-          Create Session
+          {useLiveMode ? "Start Live Compose" : "Create Session"}
         </button>
-        <button
-          className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm disabled:opacity-50 hover:bg-primary/90 transition-colors"
-          onClick={startStream}
-          disabled={!sessionId || isStreaming}
-        >
-          Start Stream
-        </button>
+        {!useLiveMode && (
+          <button
+            className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm disabled:opacity-50 hover:bg-primary/90 transition-colors"
+            onClick={startStream}
+            disabled={!sessionId || isStreaming}
+          >
+            Start Stream
+          </button>
+        )}
         <button
           className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm disabled:opacity-50 hover:bg-primary/90 transition-colors"
           onClick={generateFromBlueprints}
@@ -366,22 +442,80 @@ export default function ComposerTest() {
       </div>
 
       <div className="mt-3 text-xs text-gray-500">
-        Session ID: <span className="font-mono">{sessionId ?? "—"}</span>
+        Session ID: <span className="font-mono">{(useLiveMode ? sessionId : legacySessionId) ?? "—"}</span>
         {jobId && (
           <>
             <br />
             Job ID: <span className="font-mono">{jobId}</span>
           </>
         )}
+        {useLiveMode && (
+          <>
+            <br />
+            Status: {isStreaming ? "🔄 Streaming" : sessionId ? "✅ Live Active" : "⏸️ Inactive"}
+            {isUpdating && " • 🔄 Updating"}
+          </>
+        )}
+        {!useLiveMode && (
+          <>
+            <br />
+            Status: {legacyIsStreaming ? "🔄 Streaming" : legacySessionId ? "✅ Session Active" : "⏸️ Inactive"}
+          </>
+        )}
       </div>
 
+      {liveError && (
+        <div className="mt-3 text-sm text-red-600 bg-red-50 p-2 rounded">
+          <strong>Live Mode Error:</strong> {liveError}
+        </div>
+      )}
+
       <div className="grid md:grid-cols-2 gap-4 mt-5">
-        <JsonCard title="Suggestions" data={suggestions ?? {}} />
-        <JsonCard title="Config Draft" data={config ?? {}} />
+        <JsonCard title="Suggestions" data={(useLiveMode ? suggestions : legacySuggestions) ?? {}} />
+        <JsonCard title="Config Draft" data={(useLiveMode ? config : legacyConfig) ?? {}} />
         <div className="md:col-span-2">
-          <JsonCard title="Blueprints" data={blueprints ?? []} />
+          <JsonCard title="Blueprints" data={(useLiveMode ? blueprints : legacyBlueprints) ?? []} />
         </div>
       </div>
+
+      {/* Enhanced Config Display */}
+      {((useLiveMode ? config : legacyConfig) && (useLiveMode ? config : legacyConfig)?.description) && (
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="text-lg font-semibold text-blue-900 mb-3">Enhanced Playlist Details</h3>
+          <div className="space-y-3 text-sm">
+            {(useLiveMode ? config : legacyConfig)?.description && (
+              <div>
+                <strong className="text-blue-800">Description:</strong>
+                <p className="text-blue-700 mt-1">{(useLiveMode ? config : legacyConfig)?.description}</p>
+              </div>
+            )}
+            {(useLiveMode ? config : legacyConfig)?.productionStyle && (
+              <div>
+                <strong className="text-blue-800">Production Style:</strong>
+                <p className="text-blue-700 mt-1">{(useLiveMode ? config : legacyConfig)?.productionStyle}</p>
+              </div>
+            )}
+            {(useLiveMode ? config : legacyConfig)?.dynamicFlow && (
+              <div>
+                <strong className="text-blue-800">Dynamic Flow:</strong>
+                <p className="text-blue-700 mt-1">{(useLiveMode ? config : legacyConfig)?.dynamicFlow}</p>
+              </div>
+            )}
+            {(useLiveMode ? config : legacyConfig)?.vocalApproach && (
+              <div>
+                <strong className="text-blue-800">Vocal Approach:</strong>
+                <p className="text-blue-700 mt-1">{(useLiveMode ? config : legacyConfig)?.vocalApproach}</p>
+              </div>
+            )}
+            {(useLiveMode ? config : legacyConfig)?.targetContext && (
+              <div>
+                <strong className="text-blue-800">Target Context:</strong>
+                <p className="text-blue-700 mt-1">{(useLiveMode ? config : legacyConfig)?.targetContext}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Playlist result */}
       {playlistId && (

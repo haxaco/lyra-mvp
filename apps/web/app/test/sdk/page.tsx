@@ -4,10 +4,13 @@ import {
   useWhoAmI,
   useTracks, 
   usePlaylists,
+  usePlaylist,
   useJobs,
+  useJobQuery,
   useCreateTrack,
   useDeleteTrack,
   useCreatePlaylist,
+  useDeletePlaylist,
   useCreateJob,
 } from "@lyra/sdk";
 import { Button, Card, CardHeader, CardTitle, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@lyra/ui";
@@ -20,6 +23,8 @@ export default function SDKTestPage() {
   const [playlistName, setPlaylistName] = useState("");
   const [jobPrompt, setJobPrompt] = useState("Energetic electronic music");
   const [isRawDataOpen, setIsRawDataOpen] = useState(false);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
+  const [playlistMap, setPlaylistMap] = useState<Record<string, string>>({});
 
   // Transform SDK track data to SongLibrary format
   const transformTrackForSongLibrary = (sdkTrack: any, playlistMap: Record<string, string> = {}) => {
@@ -31,10 +36,55 @@ export default function SDKTestPage() {
       return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     };
 
-    // Extract metadata or use database fields
+    // Extract metadata or use database fields, prioritize blueprint data
     const meta = sdkTrack.meta || {};
-    const genre = sdkTrack.genre || meta.genre || 'Electronic';
-    const mood = sdkTrack.mood || meta.mood || 'Upbeat';
+    const blueprint = sdkTrack.blueprint || {};
+    
+    // Use blueprint data first, then fallback to database fields, then meta, then defaults
+    const baseGenre = blueprint.genre || sdkTrack.genre || meta.genre || 'Electronic';
+    
+    // Derive mood from energy level and genre since TrackBlueprint doesn't have mood
+    const deriveMood = (energy: number, genre: string) => {
+      if (energy >= 8) return 'Energetic';
+      if (energy >= 6) return 'Upbeat';
+      if (energy >= 4) return 'Moderate';
+      if (energy >= 2) return 'Chill';
+      return 'Calm';
+    };
+    
+    const energy = blueprint.energy || sdkTrack.energy || meta.energy || 5;
+    const baseMood = blueprint.mood || sdkTrack.mood || meta.mood || deriveMood(energy, baseGenre);
+    
+    // Create multiple genres and moods for display
+    const createMultipleGenres = (genre: string) => {
+      const genreMap: Record<string, string[]> = {
+        'house': ['House', 'Electronic'],
+        'electronic': ['Electronic', 'Synth'],
+        'jazz': ['Jazz', 'Smooth'],
+        'pop': ['Pop', 'Contemporary'],
+        'rock': ['Rock', 'Alternative'],
+        'hip-hop': ['Hip-Hop', 'Urban'],
+        'ambient': ['Ambient', 'Atmospheric'],
+        'classical': ['Classical', 'Orchestral'],
+        'funk': ['Funk', 'Groove'],
+        'reggae': ['Reggae', 'Tropical']
+      };
+      return genreMap[genre.toLowerCase()] || [genre, 'Music'];
+    };
+    
+    const createMultipleMoods = (mood: string, energy: number) => {
+      const moodMap: Record<string, string[]> = {
+        'energetic': ['Energetic', 'Dynamic'],
+        'upbeat': ['Upbeat', 'Positive'],
+        'moderate': ['Moderate', 'Balanced'],
+        'chill': ['Chill', 'Relaxed'],
+        'calm': ['Calm', 'Peaceful']
+      };
+      return moodMap[mood.toLowerCase()] || [mood, energy >= 6 ? 'Active' : 'Mellow'];
+    };
+    
+    const genre = createMultipleGenres(baseGenre).join(', ');
+    const mood = createMultipleMoods(baseMood, energy).join(', ');
     const provider = sdkTrack.provider_id || meta.provider || 'Mureka';
     const artist = sdkTrack.artist || 'User'; // Fallback to 'User' if no artist set
 
@@ -68,6 +118,18 @@ export default function SDKTestPage() {
     };
   };
 
+  // Delete playlist handler
+  const handleDeletePlaylist = async (playlistId: string, playlistName: string) => {
+    if (confirm(`Are you sure you want to delete the playlist "${playlistName}"? This action cannot be undone.`)) {
+      try {
+        await deletePlaylist.mutateAsync(playlistId);
+        alert(`Playlist "${playlistName}" deleted successfully!`);
+      } catch (error) {
+        alert(`Failed to delete playlist: ${error}`);
+      }
+    }
+  };
+
   // Transform SDK playlist data to PlaylistCard format
   const transformPlaylistForCard = (sdkPlaylist: any) => {
     // Format duration from seconds to human readable
@@ -82,8 +144,8 @@ export default function SDKTestPage() {
     };
 
     // Use real data from database columns
-    const trackCount = sdkPlaylist.track_count || 0;
-    const durationSeconds = sdkPlaylist.total_duration_seconds || 0;
+    const trackCount = (sdkPlaylist as any).track_count || 0;
+    const durationSeconds = (sdkPlaylist as any).total_duration_seconds || 0;
     const duration = formatDuration(durationSeconds);
     
     // Dynamic tags based on actual data
@@ -105,7 +167,10 @@ export default function SDKTestPage() {
       },
       onViewDetails: () => {
         console.log("Viewing playlist details:", sdkPlaylist);
-        alert(`Viewing details for: ${sdkPlaylist.name} - ${trackCount} tracks, ${duration} total`);
+        setSelectedPlaylistId(sdkPlaylist.id);
+      },
+      onDelete: () => {
+        handleDeletePlaylist(sdkPlaylist.id, sdkPlaylist.name);
       }
     };
   };
@@ -114,24 +179,55 @@ export default function SDKTestPage() {
   const whoami = useWhoAmI();
   const tracks = useTracks();
   const playlists = usePlaylists();
+  const selectedPlaylist = usePlaylist(selectedPlaylistId || "");
+  const selectedJob = useJobQuery(selectedPlaylist.data?.playlist?.job_id || "");
   const jobs = useJobs();
+  
+  // Mutation hooks
+  const deletePlaylist = useDeletePlaylist();
 
-  // Create playlist mapping for tracks
-  const playlistMap = React.useMemo(() => {
-    const map: Record<string, string> = {};
-    playlists.data?.items?.forEach(playlist => {
-      // For now, we'll use a simple mapping. In a real app, you'd need to
-      // query which tracks belong to which playlists via playlist_items table
-      // This is a placeholder that could be enhanced with a separate API call
-    });
-    return map;
-  }, [playlists.data?.items]);
 
   // Mutation hooks
   const createTrack = useCreateTrack();
   const deleteTrack = useDeleteTrack();
   const createPlaylist = useCreatePlaylist();
   const createJob = useCreateJob();
+
+  // Load playlist mapping when tracks change
+  React.useEffect(() => {
+    const loadPlaylistMapping = async () => {
+      if (!tracks.data?.items || tracks.data.items.length === 0) return;
+      
+      try {
+        const response = await fetch('/api/playlists');
+        const result = await response.json();
+        if (!result.ok) return;
+        
+        const newPlaylistMap: Record<string, string> = {};
+        
+        // For each playlist, get its tracks and map track IDs to playlist names
+        for (const playlist of result.items || []) {
+          try {
+            const playlistResponse = await fetch(`/api/playlists/${playlist.id}`);
+            const playlistResult = await playlistResponse.json();
+            if (playlistResult.ok && playlistResult.items) {
+              for (const item of playlistResult.items) {
+                newPlaylistMap[item.track_id] = playlist.name;
+              }
+            }
+          } catch (error) {
+            console.warn(`Failed to get tracks for playlist ${playlist.id}:`, error);
+          }
+        }
+        
+        setPlaylistMap(newPlaylistMap);
+      } catch (error) {
+        console.warn('Failed to get playlist names:', error);
+      }
+    };
+
+    loadPlaylistMapping();
+  }, [tracks.data?.items]);
 
   // Loading state
   if (whoami.isLoading || tracks.isLoading || playlists.isLoading) {
@@ -401,10 +497,171 @@ export default function SDKTestPage() {
                 <Button variant="outline" onClick={() => playlists.refetch()}>
                   Refresh
                 </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              if (confirm('This will update existing playlists with config and job data. Continue?')) {
+                try {
+                  const response = await fetch('/api/admin/update-playlist-configs', { method: 'POST' });
+                  const result = await response.json();
+                  alert(`Update completed: ${result.message}`);
+                  playlists.refetch();
+                } catch (error) {
+                  alert(`Update failed: ${error}`);
+                }
+              }
+            }}
+          >
+            Update Existing Playlists
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              if (confirm('This will update existing tracks with blueprint data. Continue?')) {
+                try {
+                  const response = await fetch('/api/admin/update-track-blueprints', { method: 'POST' });
+                  const result = await response.json();
+                  alert(`Update completed: ${result.message}`);
+                } catch (error) {
+                  alert(`Update failed: ${error}`);
+                }
+              }
+            }}
+          >
+            Update Track Blueprints
+          </Button>
+        </div>
               </div>
               <p className="text-xs text-muted-foreground">
                 Will add first 3 tracks to the new playlist
               </p>
+
+              {/* Debug: Playlist Status */}
+              <div className="mb-4 p-3 bg-blue-50 rounded text-sm">
+                <strong>Playlist Status:</strong>
+                <ul className="mt-2 space-y-1">
+                  <li>Loading: {playlists.isLoading ? 'Yes' : 'No'}</li>
+                  <li>Error: {playlists.error ? String(playlists.error) : 'None'}</li>
+                  <li>Data: {playlists.data ? 'Present' : 'None'}</li>
+                  <li>Items: {playlists.data?.items?.length || 0}</li>
+                  {playlists.data?.items?.[0] && (
+                    <li>First playlist: {playlists.data.items[0].name} (tracks: {(playlists.data.items[0] as any).track_count})</li>
+                  )}
+                </ul>
+              </div>
+
+              {/* Debug: Selected Playlist Details */}
+              {selectedPlaylistId && (
+                <div className="mb-4 p-3 bg-green-50 rounded text-sm">
+                  <div className="flex justify-between items-center mb-2">
+                    <strong>Selected Playlist Details:</strong>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setSelectedPlaylistId(null)}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                  
+                  {selectedPlaylist.isLoading && (
+                    <p className="text-muted-foreground">Loading playlist details...</p>
+                  )}
+                  
+                  {selectedPlaylist.error && (
+                    <p className="text-red-600">Error: {String(selectedPlaylist.error)}</p>
+                  )}
+                  
+                  {selectedPlaylist.data && (
+                    <div className="space-y-3">
+                      <div>
+                        <strong>Playlist Info:</strong>
+                        <ul className="mt-1 space-y-1 text-xs">
+                          <li>Name: {selectedPlaylist.data.playlist.name}</li>
+                          <li>ID: {selectedPlaylist.data.playlist.id}</li>
+                          <li>Created: {new Date(selectedPlaylist.data.playlist.created_at).toLocaleString()}</li>
+                          <li>Job ID: {selectedPlaylist.data.playlist.job_id || 'None'}</li>
+                          <li>Track Count: {selectedPlaylist.data.playlist.track_count || 0}</li>
+                          <li>Duration: {selectedPlaylist.data.playlist.total_duration_seconds ? `${Math.round(selectedPlaylist.data.playlist.total_duration_seconds / 60)}:${String(Math.round(selectedPlaylist.data.playlist.total_duration_seconds % 60)).padStart(2, '0')}` : 'Unknown'}</li>
+                        </ul>
+                      </div>
+                      
+                      {selectedPlaylist.data.playlist.config && (
+                        <div>
+                          <strong>Generation Config:</strong>
+                          <div className="mt-2 p-2 bg-white rounded border text-xs max-h-32 overflow-y-auto">
+                            <pre className="whitespace-pre-wrap">
+                              {JSON.stringify(selectedPlaylist.data.playlist.config, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedJob.data?.job?.params?.blueprints && (
+                        <div>
+                          <strong>Track Blueprints ({selectedJob.data.job.params.blueprints.length}):</strong>
+                          <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                            {selectedJob.data.job.params.blueprints.map((blueprint: any, index: number) => (
+                              <div key={index} className="p-2 bg-white rounded border text-xs">
+                                <div className="font-medium">Blueprint {index + 1}</div>
+                                <div>Title: {blueprint.title || 'Untitled'}</div>
+                                <div>Genre: {blueprint.genre}</div>
+                                <div>BPM: {blueprint.bpm}</div>
+                                <div>Energy: {blueprint.energy}/10</div>
+                                <div>Duration: {blueprint.durationSec}s</div>
+                                <div className="mt-1">
+                                  <div className="font-medium">Prompt:</div>
+                                  <div className="text-gray-600 max-h-16 overflow-y-auto">{blueprint.prompt}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div>
+                        <strong>Tracks ({selectedPlaylist.data.items?.length || 0}):</strong>
+                        {selectedPlaylist.data.items && selectedPlaylist.data.items.length > 0 ? (
+                          <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                            {selectedPlaylist.data.items.map((item: any, index: number) => (
+                              <div key={item.track_id} className="p-2 bg-white rounded border text-xs">
+                                <div className="font-medium">Track {index + 1}</div>
+                                <div>ID: {item.track_id}</div>
+                                <div>Position: {item.position}</div>
+                                {item.tracks && (
+                                  <div className="mt-1 space-y-1">
+                                    <div>Title: {item.tracks.title || 'Untitled'}</div>
+                                    <div>Duration: {item.tracks.duration_seconds ? `${Math.round(item.tracks.duration_seconds / 60)}:${String(Math.round(item.tracks.duration_seconds % 60)).padStart(2, '0')}` : 'Unknown'}</div>
+                                    <div>Created: {item.tracks.created_at ? new Date(item.tracks.created_at).toLocaleString() : 'Unknown'}</div>
+                                    {item.tracks.blueprint && (
+                                      <div className="mt-2 p-2 bg-gray-50 rounded border text-xs">
+                                        <div className="font-medium">Blueprint:</div>
+                                        <div>BPM: {item.tracks.blueprint.bpm}</div>
+                                        <div>Genre: {item.tracks.blueprint.genre}</div>
+                                        <div>Energy: {item.tracks.blueprint.energy}/10</div>
+                                        <div>Duration: {item.tracks.blueprint.durationSec}s</div>
+                                        {item.tracks.blueprint.key && <div>Key: {item.tracks.blueprint.key}</div>}
+                                        <div className="mt-1">
+                                          <div className="font-medium">Prompt:</div>
+                                          <div className="text-gray-600 max-h-12 overflow-y-auto">{item.tracks.blueprint.prompt}</div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-1 text-muted-foreground">No tracks found in this playlist</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Playlist Cards Grid */}
               {playlists.data?.items?.length ? (

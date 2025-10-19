@@ -9,14 +9,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const resolvedParams = await params;
     const { data: playlist, error: pErr } = await supa
       .from("playlists")
-      .select("id, name, location_id, schedule, created_at")
+      .select("id, name, location_id, schedule, created_at, config, job_id, track_count, total_duration_seconds")
       .eq("id", resolvedParams.id)
       .single();
     if (pErr) throw pErr;
 
     const { data: items, error: itErr } = await supa
       .from("playlist_items")
-      .select("position, track_id, tracks ( id, title, duration_seconds, r2_key, created_at, meta )")
+      .select("position, track_id, tracks ( id, title, duration_seconds, r2_key, created_at, meta, blueprint )")
       .eq("playlist_id", resolvedParams.id)
       .order("position", { ascending: true });
     if (itErr) throw itErr;

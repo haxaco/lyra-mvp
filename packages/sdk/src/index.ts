@@ -4,9 +4,10 @@ export * from "./hooks";
 export * from "./auth";
 export * from "./jobs";
 export * from "./react/useJob";
+export * from "./react/useLiveCompose";
 
 // AI Composer client functions
-export { startComposeSession, streamComposeSession } from "./client/aiComposer";
+export { startComposeSession, streamComposeSession, startLiveComposeSession, updateLiveComposeSession } from "./client/aiComposer";
 
 // AI Composer schemas and types
 export {

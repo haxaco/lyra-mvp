@@ -49,6 +49,8 @@ export async function generatePlaylistStep(
         payload.config.playlistTitle ||
         `AI Playlist – ${new Date().toLocaleString()}`,
       schedule: null,
+      config: payload.config, // Store full ComposeConfig
+      job_id: ctx.jobId, // Track which job created this playlist
     })
     .select("id")
     .single();
@@ -101,6 +103,7 @@ export async function generatePlaylistStep(
         sample_rate: 44,
         bitrate_kbps: 256,
         watermark: false,
+        blueprint: bp, // Store complete blueprint
       })
       .select("id, r2_key")
       .single();
@@ -113,6 +116,15 @@ export async function generatePlaylistStep(
       position: i,
     });
     if (itemErr) throw new Error(itemErr.message);
+    
+    // Update playlist stats after adding each track
+    const { error: statsErr } = await supabase.rpc('update_playlist_stats', {
+      playlist_uuid: playlistId
+    });
+    if (statsErr) {
+      console.warn(`Failed to update playlist stats for track ${i + 1}:`, statsErr);
+      // Don't fail the job, just log the warning
+    }
 
     // Test convenience: presign for quick audition
     const mp3 = await createPresignedGetUrl(mp3Key, 3600);
@@ -128,6 +140,16 @@ export async function generatePlaylistStep(
     });
 
     emit("progress", { index: i, trackId, mp3Key });
+  }
+
+  // Final playlist stats update to ensure everything is calculated correctly
+  const { error: finalStatsErr } = await supabase.rpc('update_playlist_stats', {
+    playlist_uuid: playlistId
+  });
+  if (finalStatsErr) {
+    console.warn('Failed to update final playlist stats:', finalStatsErr);
+  } else {
+    console.log(`Final playlist stats updated for ${playlistId}`);
   }
 
   emit("log", { msg: "Playlist generation completed." });

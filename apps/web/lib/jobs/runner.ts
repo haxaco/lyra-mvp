@@ -444,7 +444,7 @@ export async function runTrackJob(jobId: string): Promise<void> {
         organization_id: job.organization_id,
         r2_key_mp3: mp3Key,
         r2_key_flac: flacKey,
-        duration_seconds: choice.duration || null, // Store raw milliseconds from Mureka API
+        duration_seconds: choice.duration ? Math.round(choice.duration / 1000) : null, // Convert milliseconds to seconds
         job_id: jobId,
         title: isPlaylistTrack ? 
           (job.params.blueprint?.title || generateTitle(job.params.blueprint?.prompt, i)) :
@@ -461,6 +461,7 @@ export async function runTrackJob(jobId: string): Promise<void> {
           mureka_full_response: result, // Store full response for debugging
         },
         provider_id: 'mureka',
+        blueprint: isPlaylistTrack ? job.params.blueprint : null, // Store complete blueprint for playlist tracks
       };
       
       const trackId = await insertTrack(trackData);
@@ -481,6 +482,17 @@ export async function runTrackJob(jobId: string): Promise<void> {
           throw new Error(`Failed to add track to playlist: ${itemErr.message}`);
         }
         console.log(`[Job ${jobId}] Track ${trackId} added to playlist ${job.params.playlistId} at position ${trackIndex}`);
+        
+        // Update playlist stats after adding track
+        const { error: statsErr } = await supabase.rpc('update_playlist_stats', {
+          playlist_uuid: job.params.playlistId
+        });
+        if (statsErr) {
+          console.warn(`[Job ${jobId}] Failed to update playlist stats:`, statsErr);
+          // Don't fail the job, just log the warning
+        } else {
+          console.log(`[Job ${jobId}] Updated playlist stats for ${job.params.playlistId}`);
+        }
       }
       
       await emitEvent(jobId, job.organization_id, 'item_succeeded', { 
@@ -499,6 +511,19 @@ export async function runTrackJob(jobId: string): Promise<void> {
       completed_count: result.choices.length,
       finished_at: new Date().toISOString()
     });
+    
+    // Final playlist stats update if this was a playlist track
+    if (isPlaylistTrack && job.params.playlistId) {
+      const supabase = getSupabaseAdmin();
+      const { error: finalStatsErr } = await supabase.rpc('update_playlist_stats', {
+        playlist_uuid: job.params.playlistId
+      });
+      if (finalStatsErr) {
+        console.warn(`[Job ${jobId}] Failed to update final playlist stats:`, finalStatsErr);
+      } else {
+        console.log(`[Job ${jobId}] Final playlist stats updated for ${job.params.playlistId}`);
+      }
+    }
     
     await emitEvent(jobId, job.organization_id, 'succeeded', { 
       track_ids: trackIds,
@@ -578,6 +603,8 @@ export async function runPlaylistJob(jobId: string): Promise<void> {
         location_id: job.params.locationId ?? null,
         name: job.params.config?.playlistTitle || `AI Playlist – ${new Date().toLocaleString()}`,
         schedule: null,
+        config: job.params.config, // Store full ComposeConfig
+        job_id: jobId, // Track which job created this playlist
       })
       .select("id")
       .single();

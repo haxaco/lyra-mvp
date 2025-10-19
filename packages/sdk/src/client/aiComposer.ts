@@ -26,3 +26,59 @@ export function streamComposeSession(baseUrl: string, args: {
   es.onerror = (e) => { args.onError?.(e); es.close(); };
   return () => es.close();
 }
+
+// New live composition functions
+export function startLiveComposeSession(baseUrl: string, args: {
+  orgId: string; userId: string; brief: { 
+    brief: string; 
+    model?: string; 
+    temperature?: number;
+    [key: string]: any;
+  };
+  onEvent: (evt: any) => void; onError?: (err: any) => void;
+}) {
+  const url = `${baseUrl}/api/ai/compose/live?orgId=${encodeURIComponent(args.orgId)}&userId=${encodeURIComponent(args.userId)}&brief=${encodeURIComponent(args.brief.brief)}&model=${encodeURIComponent(args.brief.model || "auto")}&temperature=${encodeURIComponent(args.brief.temperature || 0.7)}`;
+  
+  const es = new EventSource(url);
+  
+  es.onmessage = (e) => { 
+    try { 
+      const event = JSON.parse(e.data);
+      args.onEvent(event);
+    } catch (err) { 
+      args.onError?.(err); 
+    } 
+  };
+  es.onerror = (e) => { 
+    args.onError?.(e); 
+    es.close(); 
+  };
+  
+  // Return cleanup function
+  return () => {
+    es.close();
+  };
+}
+
+export async function updateLiveComposeSession(baseUrl: string, args: {
+  orgId: string; userId: string; sessionId: string;
+  brief: string; updateType: "suggestions" | "config" | "blueprints";
+  previousSuggestions?: any[];
+}) {
+  const res = await fetch(
+    `${baseUrl}/api/ai/compose/live/update?orgId=${encodeURIComponent(args.orgId)}&userId=${encodeURIComponent(args.userId)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: args.sessionId,
+        brief: args.brief,
+        updateType: args.updateType,
+        previousSuggestions: args.previousSuggestions,
+      })
+    }
+  );
+  const json = await res.json();
+  if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json;
+}
