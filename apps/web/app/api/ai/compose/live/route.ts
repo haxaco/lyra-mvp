@@ -68,6 +68,9 @@ export async function GET(req: Request) {
               brief,
               model: model as any,
               temperature,
+              n: 6, // Default number of tracks
+              durationSec: 180, // Default duration
+              familyFriendly: true, // Default family friendly
             },
           })) {
             await saveStreamEvent({
