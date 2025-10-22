@@ -2,8 +2,9 @@ import React from 'react';
 import { Card } from '../primitives/card';
 import { Button } from '../primitives/button';
 import { Badge } from '../primitives/badge';
-import { Play, Clock, Music, MoreVertical, Trash2 } from 'lucide-react';
+import { Play, Clock, Music, MoreVertical, Trash2, RefreshCw } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { AlbumCover } from './AlbumCover';
 
 interface PlaylistCardProps {
   id: string;
@@ -13,22 +14,27 @@ interface PlaylistCardProps {
   trackCount?: number;
   tags?: string[];
   imageUrl?: string;
+  r2Key?: string | null; // Add R2 key support
   onPlay?: () => void;
   onViewDetails?: () => void;
   onDelete?: () => void;
+  onRegenerateCover?: () => void; // Add regenerate cover callback
   variant?: 'default' | 'compact';
 }
 
 export const PlaylistCard: React.FC<PlaylistCardProps> = ({
+  id,
   title,
   description,
   duration,
   trackCount,
   tags = [],
   imageUrl,
+  r2Key,
   onPlay,
   onViewDetails,
   onDelete,
+  onRegenerateCover,
   variant = 'default'
 }) => {
   if (variant === 'compact') {
@@ -37,7 +43,14 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
         <div className="flex items-center gap-4">
           <div className="relative">
             <div className="w-16 h-16 rounded-lg bg-gradient-coral flex items-center justify-center overflow-hidden">
-              {imageUrl ? (
+              {r2Key ? (
+                <AlbumCover 
+                  r2Key={r2Key} 
+                  playlistName={title}
+                  size="md"
+                  className="w-full h-full"
+                />
+              ) : imageUrl ? (
                 <ImageWithFallback 
                   src={imageUrl} 
                   alt={title}
@@ -86,7 +99,14 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover-coral group">
       {/* Cover Image */}
       <div className="relative h-48 bg-gradient-coral">
-        {imageUrl ? (
+        {r2Key ? (
+          <AlbumCover 
+            r2Key={r2Key} 
+            playlistName={title}
+            size="xl"
+            className="w-full h-full"
+          />
+        ) : imageUrl ? (
           <ImageWithFallback 
             src={imageUrl} 
             alt={title}
@@ -97,13 +117,25 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
             <Music className="w-12 h-12 text-white/50" />
           </div>
         )}
-        <Button
-          size="lg"
-          className="absolute bottom-4 right-4 h-12 w-12 rounded-full bg-primary hover:bg-primary/90 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={onPlay}
-        >
-          <Play className="w-5 h-5 text-white fill-white" />
-        </Button>
+        <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onRegenerateCover && (
+            <Button
+              size="sm"
+              className="h-10 w-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm shadow-lg"
+              onClick={onRegenerateCover}
+              title="Regenerate Album Cover"
+            >
+              <RefreshCw className="w-4 h-4 text-white" />
+            </Button>
+          )}
+          <Button
+            size="lg"
+            className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 shadow-lg"
+            onClick={onPlay}
+          >
+            <Play className="w-5 h-5 text-white fill-white" />
+          </Button>
+        </div>
       </div>
 
       {/* Content */}

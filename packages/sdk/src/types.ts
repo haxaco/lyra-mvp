@@ -22,6 +22,7 @@ export type Playlist = {
   job_id?: string | null; // Reference to generation job
   track_count?: number;
   total_duration_seconds?: number;
+  album_cover_r2_key?: string | null; // R2 key for album cover image
 };
 
 export type PlaylistDetail = Playlist & {

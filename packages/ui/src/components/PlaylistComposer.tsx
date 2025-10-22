@@ -40,6 +40,7 @@ interface TrackBlueprint {
   genre: string;
   energy: number;
   bpm: number;
+  lyrics?: string;
 }
 
 interface AIFeedItem {
@@ -274,7 +275,8 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({
         prompt: blueprint.prompt || '',
         genre: blueprint.genre || 'Electronic',
         energy: blueprint.energy || 5,
-        bpm: blueprint.bpm || 120
+        bpm: blueprint.bpm || 120,
+        lyrics: blueprint.lyrics || ''
       }));
       setTracks(formattedTracks);
       
@@ -342,10 +344,26 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({
     const track = tracks.find(t => t.id === id);
     if (track) {
       const newTitle = `${['Sunrise', 'Moonlight', 'Harmony', 'Rhythm', 'Melody'][Math.floor(Math.random() * 5)]} ${track.trackNumber}`;
-      updateTrack(id, { title: newTitle });
+      const sampleLyrics = [
+        "Verse 1:\nWalking through the morning light\nEverything feels so right\n\nChorus:\nThis is our time to shine\nLet the music fill our minds",
+        "Verse 1:\nIn the quiet of the night\nStars are shining oh so bright\n\nChorus:\nDancing to the rhythm\nFeeling the magic within",
+        "Verse 1:\nSunset colors in the sky\nDreams are reaching way up high\n\nChorus:\nWe're on this journey together\nMaking memories that last forever",
+        "[Instrumental only]",
+        "Verse 1:\nCity lights are calling me\nThrough the streets I'm running free\n\nChorus:\nThis is where I belong\nIn the rhythm of the song"
+      ];
+      const newLyrics = sampleLyrics[Math.floor(Math.random() * sampleLyrics.length)];
+      
+      updateTrack(id, { 
+        title: newTitle,
+        lyrics: newLyrics
+      });
+      
+      const lyricsMessage = newLyrics === "[Instrumental only]" 
+        ? "as instrumental track" 
+        : "with new lyrics";
       
       addAIFeedItem({
-        message: `Regenerated suggestion for Track ${track.trackNumber}: "${newTitle}"`,
+        message: `Regenerated suggestion for Track ${track.trackNumber}: "${newTitle}" ${lyricsMessage}`,
         type: 'suggestion'
       });
     }
@@ -609,10 +627,11 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({
         console.error('SSE error during job execution:', error);
         es.close();
         setState('error');
-        addChatMessage({
-          role: 'ai',
-          content: '❌ Connection error during generation'
-        });
+        //making the error silent from the user
+        // addChatMessage({
+        //   role: 'ai',
+        //   content: '❌ Connection error during generation'
+        // });
       };
 
       // Store EventSource for cleanup
@@ -1498,6 +1517,8 @@ const TrackBlueprintCard: React.FC<TrackBlueprintCardProps> = ({
   onUpdate, 
   onRegenerate 
 }) => {
+  const [lyricsOpen, setLyricsOpen] = useState(false);
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -1584,6 +1605,59 @@ const TrackBlueprintCard: React.FC<TrackBlueprintCardProps> = ({
               className="[&_[role=slider]]:bg-gradient-to-r [&_[role=slider]]:from-[#FF6F61] [&_[role=slider]]:to-[#FF8A80]"
             />
           </div>
+
+          {/* Lyrics Section - Collapsible */}
+          {track.lyrics === '[Instrumental only]' ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-[#1A1816]/50 border border-[#FF6F61]/20">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-[#6B5B5B]" />
+                  <Label className="text-xs text-[#6B5B5B]">Lyrics</Label>
+                  <Badge variant="outline" className="text-xs border-[#6B5B5B]/40 text-[#6B5B5B] bg-[#6B5B5B]/5">
+                    Instrumental Only
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Collapsible open={lyricsOpen} onOpenChange={setLyricsOpen}>
+              <div className="space-y-2">
+                <CollapsibleTrigger className="w-full">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#1A1816]/50 border border-[#FF6F61]/20 hover:border-[#FF8A80]/40 transition-all cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-[#FF8A80]" />
+                      <Label className="text-xs text-[#B8ADA8] cursor-pointer">Lyrics</Label>
+                      {track.lyrics && track.lyrics !== '[Instrumental only]' && (
+                        <Badge variant="outline" className="text-xs border-[#FF8A80]/40 text-[#FF8A80] bg-[#FF8A80]/5">
+                          {track.lyrics.length > 0 ? 'Generated' : 'Empty'}
+                        </Badge>
+                      )}
+                    </div>
+                    {lyricsOpen ? (
+                      <ChevronUp className="w-4 h-4 text-[#B8ADA8]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[#B8ADA8]" />
+                    )}
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-2">
+                    <Textarea
+                      value={track.lyrics || ''}
+                      onChange={(e) => onUpdate(track.id, { lyrics: e.target.value })}
+                      placeholder="Enter lyrics for this track... (AI will generate lyrics if left empty)"
+                      className="min-h-32 bg-[#1A1816] border-[#FF6F61]/20 text-[#FAF9F7] text-sm resize-none placeholder:text-[#6B5B5B]"
+                    />
+                    {!track.lyrics && (
+                      <p className="text-xs text-[#6B5B5B] italic">
+                        💡 Leave empty to let AI generate lyrics based on the track prompt
+                      </p>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          )}
 
           {/* Waveform Visualization */}
           <div className="h-12 flex items-end gap-0.5 opacity-50 group-hover:opacity-100 transition-opacity">
