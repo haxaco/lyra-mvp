@@ -161,33 +161,29 @@ export function useLiveCompose({
       setState(prev => ({ ...prev, isUpdating: true, error: null }));
 
       try {
-        // Update suggestions first
-        if (state.suggestions) {
-          const suggestionsResponse = await updateLiveComposeSession(baseUrl, {
-            orgId,
-            userId,
-            sessionId: state.sessionId,
-            brief,
-            updateType: 'suggestions',
-          });
-          
-          if (suggestionsResponse.ok && suggestionsResponse.type === 'suggestions') {
-            setState(prev => ({ 
-              ...prev, 
-              suggestions: suggestionsResponse.data?.suggestions || null 
-            }));
-          }
-        }
+        // Always update suggestions first
+        const suggestionsResponse = await updateLiveComposeSession(baseUrl, {
+          orgId,
+          userId,
+          sessionId: state.sessionId,
+          brief,
+          updateType: 'suggestions',
+        });
+        
+        if (suggestionsResponse.ok && suggestionsResponse.type === 'suggestions') {
+          setState(prev => ({ 
+            ...prev, 
+            suggestions: suggestionsResponse.data?.suggestions || null 
+          }));
 
-        // Then update config if we have suggestions
-        if (state.suggestions) {
+          // Then update config with the new suggestions
           const configResponse = await updateLiveComposeSession(baseUrl, {
             orgId,
             userId,
             sessionId: state.sessionId,
             brief,
             updateType: 'config',
-            previousSuggestions: state.suggestions || undefined,
+            previousSuggestions: suggestionsResponse.data?.suggestions || undefined,
           });
           
           if (configResponse.ok && configResponse.type === 'config_draft') {
@@ -195,25 +191,23 @@ export function useLiveCompose({
               ...prev, 
               config: configResponse.data?.config || null 
             }));
-          }
-        }
 
-        // Finally, update blueprints if we have config
-        if (state.config) {
-          const blueprintsResponse = await updateLiveComposeSession(baseUrl, {
-            orgId,
-            userId,
-            sessionId: state.sessionId,
-            brief,
-            updateType: 'blueprints',
-            previousSuggestions: state.suggestions || undefined,
-          });
-          
-          if (blueprintsResponse.ok && blueprintsResponse.type === 'blueprints') {
-            setState(prev => ({ 
-              ...prev, 
-              blueprints: blueprintsResponse.data?.blueprints || null 
-            }));
+            // Finally, always update blueprints with the new config
+            const blueprintsResponse = await updateLiveComposeSession(baseUrl, {
+              orgId,
+              userId,
+              sessionId: state.sessionId,
+              brief,
+              updateType: 'blueprints',
+              previousSuggestions: suggestionsResponse.data?.suggestions || undefined,
+            });
+            
+            if (blueprintsResponse.ok && blueprintsResponse.type === 'blueprints') {
+              setState(prev => ({ 
+                ...prev, 
+                blueprints: blueprintsResponse.data?.blueprints || null 
+              }));
+            }
           }
         }
       } catch (error) {
@@ -226,7 +220,41 @@ export function useLiveCompose({
         setState(prev => ({ ...prev, isUpdating: false }));
       }
     }, debounceMs);
-  }, [baseUrl, orgId, userId, state.sessionId, state.suggestions, debounceMs]);
+  }, [baseUrl, orgId, userId, state.sessionId, debounceMs]);
+
+  // Function to regenerate blueprints when parameters change
+  const regenerateBlueprints = useCallback(async (brief: string) => {
+    if (!brief.trim() || !state.sessionId) return;
+    
+    setState(prev => ({ ...prev, isUpdating: true, error: null }));
+
+    try {
+      // Regenerate blueprints with current brief and suggestions
+      const blueprintsResponse = await updateLiveComposeSession(baseUrl, {
+        orgId,
+        userId,
+        sessionId: state.sessionId,
+        brief,
+        updateType: 'blueprints',
+        previousSuggestions: state.suggestions || undefined,
+      });
+      
+      if (blueprintsResponse.ok && blueprintsResponse.type === 'blueprints') {
+        setState(prev => ({ 
+          ...prev, 
+          blueprints: blueprintsResponse.data?.blueprints || null 
+        }));
+      }
+    } catch (error) {
+      console.error('Blueprint regeneration error:', error);
+      setState(prev => ({ 
+        ...prev, 
+        error: String((error as any)?.message || error) 
+      }));
+    } finally {
+      setState(prev => ({ ...prev, isUpdating: false }));
+    }
+  }, [baseUrl, orgId, userId, state.sessionId, state.suggestions]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -239,6 +267,7 @@ export function useLiveCompose({
     ...state,
     startCompose,
     updateBrief,
+    regenerateBlueprints,
     clearAll,
   };
 }

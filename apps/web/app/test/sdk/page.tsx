@@ -13,7 +13,24 @@ import {
   useDeletePlaylist,
   useCreateJob,
 } from "@lyra/sdk";
-import { Button, Card, CardHeader, CardTitle, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger, PlaylistComposer } from "@lyra/ui";
+import { Button, Card, CardHeader, CardTitle, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@lyra/ui";
+import dynamic from 'next/dynamic';
+
+// Dynamically import PlaylistComposer with no SSR to prevent hydration issues
+const PlaylistComposer = dynamic(
+  () => import('@lyra/ui').then(mod => ({ default: mod.PlaylistComposer })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-muted-foreground text-sm">Loading Playlist Composer...</p>
+        </div>
+      </div>
+    )
+  }
+);
 import { PlaylistCard, SongLibrary } from "@lyra/ui/dist/components";
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -348,6 +365,9 @@ export default function SDKTestPage() {
                   console.log('Generated playlist:', playlist);
                   alert(`Playlist generated: ${playlist.name || 'Untitled Playlist'}`);
                 }}
+                orgId={whoami.data?.organization_id || undefined}
+                userId={whoami.data?.user_id || undefined}
+                baseUrl={process.env.NEXT_PUBLIC_APP_URL || ""}
               />
             </CardContent>
           </CardHeader>

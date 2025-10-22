@@ -9,7 +9,7 @@ export * from "./theme";
 export * from "./utils";
 
 // Export specific application components
-export { PlaylistComposer } from './components/PlaylistComposerClient';
+export { PlaylistComposer } from './components/PlaylistComposer';
 
 // Note: Other application components are available but not exported by default
 // Import them directly: import { SignIn } from '@lyra/ui/components'

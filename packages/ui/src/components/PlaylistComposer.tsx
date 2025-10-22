@@ -83,6 +83,24 @@ type PlaylistState = 'idle' | 'advanced' | 'generating' | 'completed' | 'error' 
 interface PlaylistComposerProps {
   onPlayTrack?: (track: TrackBlueprint) => void;
   onPlaylistGenerated?: (playlist: GeneratedPlaylist) => void;
+  // Authentication props
+  orgId?: string;
+  userId?: string;
+  baseUrl?: string;
+  // Live compose state (optional - if not provided, component will work in standalone mode)
+  liveComposeState?: {
+    sessionId: string | null;
+    isStreaming: boolean;
+    suggestions: any[] | null;
+    config: any | null;
+    blueprints: any[] | null;
+    isUpdating: boolean;
+    error: string | null;
+    startCompose: (brief: string) => Promise<void>;
+    updateBrief: (brief: string) => void;
+    regenerateBlueprints: (brief: string) => Promise<void>;
+    clearAll: () => void;
+  };
 }
 
 interface GeneratedPlaylist {
@@ -122,161 +140,17 @@ const AI_MODELS = [
   { value: 'lyra-creative', label: 'Lyra Creative (Experimental)' }
 ];
 
-const INITIAL_TRACKS: TrackBlueprint[] = [
-  {
-    id: '1',
-    trackNumber: 1,
-    title: 'Morning Warmth',
-    prompt: 'Gentle acoustic guitar with soft piano, warm and welcoming',
-    genre: 'Indie',
-    energy: 4,
-    bpm: 85
-  },
-  {
-    id: '2',
-    trackNumber: 2,
-    title: 'Cozy Conversations',
-    prompt: 'Light jazz with brushed drums, perfect for background ambiance',
-    genre: 'Jazz',
-    energy: 5,
-    bpm: 95
-  },
-  {
-    id: '3',
-    trackNumber: 3,
-    title: 'Afternoon Glow',
-    prompt: 'Uplifting indie-folk with subtle strings, cheerful and bright',
-    genre: 'Folk',
-    energy: 6,
-    bpm: 105
-  },
-  {
-    id: '4',
-    trackNumber: 4,
-    title: 'Golden Hour Blend',
-    prompt: 'Mellow electronic with organic textures, reflective and calm',
-    genre: 'Electronic',
-    energy: 4,
-    bpm: 90
-  },
-  {
-    id: '5',
-    trackNumber: 5,
-    title: 'Evening Fade',
-    prompt: 'Soft lo-fi beats with vinyl crackle, peaceful and nostalgic',
-    genre: 'Lo-fi',
-    energy: 3,
-    bpm: 75
-  }
-];
 
-const INITIAL_AI_FEED: AIFeedItem[] = [
-  {
-    id: '1',
-    timestamp: new Date(),
-    message: 'Analyzing your brand brief for "cozy neighborhood cafe"...',
-    type: 'analysis'
-  },
-  {
-    id: '2',
-    timestamp: new Date(),
-    message: 'Track 2 could benefit from more percussion to maintain energy flow',
-    type: 'suggestion'
-  },
-  {
-    id: '3',
-    timestamp: new Date(),
-    message: 'Your BPM range creates a natural progression from morning to evening',
-    type: 'insight'
-  }
-];
 
-const AI_SUGGESTIONS: AISuggestion[] = [
-  {
-    id: '1',
-    title: 'Morning Focus',
-    description: 'Energizing yet focused playlist perfect for morning productivity',
-    genres: ['Lo-fi', 'Chillhop', 'Ambient'],
-    moods: ['Focused', 'Calm', 'Uplifting'],
-    energy: 6,
-    bpmMin: 90,
-    bpmMax: 110,
-    numTracks: 8,
-    thumbnail: '🌅'
-  },
-  {
-    id: '2',
-    title: 'Cafe Ambiance',
-    description: 'Warm background music that enhances conversation',
-    genres: ['Jazz', 'Indie', 'Folk'],
-    moods: ['Calm', 'Happy', 'Peaceful'],
-    energy: 5,
-    bpmMin: 80,
-    bpmMax: 100,
-    numTracks: 6,
-    thumbnail: '☕'
-  },
-  {
-    id: '3',
-    title: 'Afternoon Energy',
-    description: 'Upbeat selection to maintain customer energy',
-    genres: ['Pop', 'Indie', 'Electronic'],
-    moods: ['Energetic', 'Happy', 'Motivational'],
-    energy: 7,
-    bpmMin: 100,
-    bpmMax: 120,
-    numTracks: 7,
-    thumbnail: '☀️'
-  },
-  {
-    id: '4',
-    title: 'Evening Unwind',
-    description: 'Relaxing sounds for winding down the day',
-    genres: ['Ambient', 'Classical', 'Lo-fi'],
-    moods: ['Peaceful', 'Dreamy', 'Nostalgic'],
-    energy: 3,
-    bpmMin: 60,
-    bpmMax: 80,
-    numTracks: 5,
-    thumbnail: '🌙'
-  }
-];
 
-const INITIAL_CHAT_MESSAGES: AIMessage[] = [
-  {
-    id: '1',
-    role: 'ai',
-    content: 'Hi! I\'m Lyra, your AI music composer. I\'ve analyzed your brief for a "cozy neighborhood cafe" and I have some thoughts to share.',
-    timestamp: new Date(Date.now() - 180000),
-  },
-  {
-    id: '2',
-    role: 'ai',
-    content: 'Your brief suggests a warm, inviting atmosphere where people can relax and connect. I\'m thinking we want music that enhances conversation without overpowering it — something between 70-100 BPM with moderate energy.',
-    timestamp: new Date(Date.now() - 120000),
-  },
-  {
-    id: '3',
-    role: 'ai',
-    content: 'I notice you mentioned "morning energy" — that tells me we should create a progression. Start calm and gentle, then gradually build to a brighter, more uplifting vibe as the day progresses. Jazz, Indie, and Lo-fi would work beautifully here.',
-    timestamp: new Date(Date.now() - 60000),
-    actionChips: [
-      { id: 'apply-cafe', label: 'Apply Cafe Setup', action: 'apply', data: AI_SUGGESTIONS[1] }
-    ]
-  },
-  {
-    id: '4',
-    role: 'ai',
-    content: 'I\'ve prepared a few playlist configurations based on different times of day. The "Cafe Ambiance" setup would be perfect for your all-day background music, while "Morning Focus" could work great for early hours when customers are working.',
-    timestamp: new Date(Date.now() - 30000),
-    actionChips: [
-      { id: 'regen', label: 'Regenerate Ideas', action: 'regenerate' },
-      { id: 'explain', label: 'Explain More', action: 'explain' }
-    ]
-  }
-];
 
-export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ onPlaylistGenerated }) => {
+export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ 
+  onPlaylistGenerated, 
+  orgId, 
+  userId, 
+  baseUrl = process.env.NEXT_PUBLIC_APP_URL || "",
+  liveComposeState
+}) => {
   // Hydration check
   const [isMounted, setIsMounted] = useState(false);
   
@@ -284,19 +158,35 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ onPlaylistGe
     setIsMounted(true);
   }, []);
 
+  // Check if we have authentication data
+  const isAuthenticated = !!(orgId && userId);
+
+  // Use live compose state if provided, otherwise use local state
+  const sessionId = liveComposeState?.sessionId || null;
+  const isStreaming = liveComposeState?.isStreaming || false;
+  const liveSuggestions = liveComposeState?.suggestions || null;
+  const liveConfig = liveComposeState?.config || null;
+  const liveBlueprints = liveComposeState?.blueprints || null;
+  const isUpdating = liveComposeState?.isUpdating || false;
+  const liveError = liveComposeState?.error || null;
+  const startCompose = liveComposeState?.startCompose || (async () => {});
+  const updateBrief = liveComposeState?.updateBrief || (() => {});
+  const regenerateBlueprints = liveComposeState?.regenerateBlueprints || (async () => {});
+  const clearLiveAll = liveComposeState?.clearAll || (() => {});
+
   // State
   const [state, setState] = useState<PlaylistState>('idle');
-  const [brief, setBrief] = useState('Morning energy mix for a cozy neighborhood cafe');
+  const [brief, setBrief] = useState('');
   const [energy, setEnergy] = useState([6]);
-  const [selectedMoods, setSelectedMoods] = useState<string[]>(['Calm', 'Happy', 'Uplifting']);
-  const [selectedGenres, setSelectedGenres] = useState<string[]>(['Indie', 'Jazz', 'Folk']);
+  const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [bpmMin, setBpmMin] = useState(70);
   const [bpmMax, setBpmMax] = useState(110);
   const [numTracks, setNumTracks] = useState(5);
   const [familyFriendly, setFamilyFriendly] = useState(true);
   const [selectedModel, setSelectedModel] = useState('lyra-pro');
-  const [tracks, setTracks] = useState<TrackBlueprint[]>(INITIAL_TRACKS);
-  const [, setAiFeed] = useState<AIFeedItem[]>(INITIAL_AI_FEED);
+  const [tracks, setTracks] = useState<TrackBlueprint[]>([]);
+  const [, setAiFeed] = useState<AIFeedItem[]>([]);
   const [progress, setProgress] = useState(0);
   
   // AI Composer State
@@ -304,19 +194,129 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ onPlaylistGe
   const [aiFeedback, setAIFeedback] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
   const [applyingSetup, setApplyingSetup] = useState(false);
-  const [chatMessages, setChatMessages] = useState<AIMessage[]>(INITIAL_CHAT_MESSAGES);
+  const [chatMessages, setChatMessages] = useState<AIMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
 
   // Collapsible State
   const [parametersOpen, setParametersOpen] = useState(true);
   const [advancedMode, setAdvancedMode] = useState(false);
 
-  // Auto-trigger enrichment on mount
+  // Initialize with welcome message when authenticated
   useEffect(() => {
-    const timer = setTimeout(() => {
-      handleEnrichWithAI();
-    }, 1000);
-    return () => clearTimeout(timer);
+    if (isAuthenticated && isMounted && chatMessages.length === 0) {
+      addChatMessage({
+        role: 'ai',
+        content: 'Hi! I\'m Lyra, your AI music composer. Describe your playlist vision and I\'ll help you create the perfect soundtrack!'
+      });
+    }
+  }, [isAuthenticated, isMounted, chatMessages.length]);
+
+  // Handle brief changes with debouncing
+  const handleBriefChange = (newBrief: string) => {
+    setBrief(newBrief);
+    
+    // Start AI composition when user first enters a brief
+    if (isAuthenticated && newBrief.trim() && !sessionId) {
+      startCompose(newBrief);
+    } else if (isAuthenticated && sessionId && newBrief.trim()) {
+      updateBrief(newBrief);
+    }
+  };
+
+  // Sync live suggestions with local state
+  useEffect(() => {
+    if (liveSuggestions && liveSuggestions.length > 0) {
+      const formattedSuggestions = liveSuggestions.map((suggestion: any, index: number) => ({
+        id: `live-${index}`,
+        title: suggestion.title || `Suggestion ${index + 1}`,
+        description: suggestion.notes?.join(', ') || 'AI-generated suggestion',
+        genres: suggestion.genres || [],
+        energy: suggestion.energy || 5,
+        moods: suggestion.moods || [],
+        bpmMin: suggestion.bpmRange?.[0] || 80,
+        bpmMax: suggestion.bpmRange?.[1] || 120,
+        numTracks: suggestion.tracks || 6,
+        thumbnail: `https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop&ixlib=rb-4.0.3&ixid=${index}`
+      }));
+      setSuggestions(formattedSuggestions);
+      setIsTyping(false);
+    }
+  }, [liveSuggestions]);
+
+  // Sync live config with local state
+  useEffect(() => {
+    if (liveConfig) {
+      // Update local state with live config data
+      if (liveConfig.genres) setSelectedGenres(liveConfig.genres);
+      if (liveConfig.energy) setEnergy([liveConfig.energy]);
+      if (liveConfig.moods) setSelectedMoods(liveConfig.moods);
+      if (liveConfig.bpmRange) {
+        setBpmMin(liveConfig.bpmRange[0]);
+        setBpmMax(liveConfig.bpmRange[1]);
+      }
+      if (liveConfig.tracks) setNumTracks(liveConfig.tracks);
+      if (liveConfig.familyFriendly !== undefined) setFamilyFriendly(liveConfig.familyFriendly);
+      
+      addChatMessage({
+        role: 'ai',
+        content: '✨ I\'ve analyzed your brief and generated a configuration! Check the suggestions tab to see options.'
+      });
+    }
+  }, [liveConfig]);
+
+  // Sync live blueprints with local state
+  useEffect(() => {
+    if (liveBlueprints && liveBlueprints.length > 0) {
+      const formattedTracks = liveBlueprints.map((blueprint: any, index: number) => ({
+        id: `track-${index}`,
+        trackNumber: index + 1,
+        title: blueprint.title || `Track ${index + 1}`,
+        prompt: blueprint.prompt || '',
+        genre: blueprint.genre || 'Electronic',
+        energy: blueprint.energy || 5,
+        bpm: blueprint.bpm || 120
+      }));
+      setTracks(formattedTracks);
+      
+      addChatMessage({
+        role: 'ai',
+        content: `🎵 Generated ${liveBlueprints.length} track blueprints! Ready to create your playlist.`
+      });
+    }
+  }, [liveBlueprints]);
+
+  // Handle live compose errors
+  useEffect(() => {
+    if (liveError) {
+      setIsTyping(false);
+      addChatMessage({
+        role: 'ai',
+        content: `❌ Error: ${liveError}`
+      });
+      setState('idle');
+    }
+  }, [liveError]);
+
+  // Regenerate blueprints when creative parameters change (if we have a session and brief)
+  useEffect(() => {
+    if (isAuthenticated && sessionId && brief.trim() && liveConfig) {
+      // Debounce parameter changes to avoid excessive API calls
+      const timeoutId = setTimeout(() => {
+        regenerateBlueprints(brief);
+      }, 2000); // 2 second debounce for parameter changes
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [energy, selectedMoods, selectedGenres, bpmMin, bpmMax, numTracks, familyFriendly, selectedModel, isAuthenticated, sessionId, brief, liveConfig, regenerateBlueprints]);
+
+  // Cleanup EventSource on unmount
+  useEffect(() => {
+    return () => {
+      if ((window as any).currentJobEventSource) {
+        (window as any).currentJobEventSource.close();
+        (window as any).currentJobEventSource = null;
+      }
+    };
   }, []);
 
   // Toggle functions
@@ -367,32 +367,48 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ onPlaylistGe
     }]);
   };
 
-  const handleEnrichWithAI = () => {
+  const handleEnrichWithAI = async () => {
+    if (!isAuthenticated || !orgId || !userId) {
+      addChatMessage({
+        role: 'ai',
+        content: 'Please log in to use AI features.'
+      });
+      return;
+    }
+
+    if (!brief.trim()) {
+      addChatMessage({
+        role: 'ai',
+        content: 'Please enter a brief description of your playlist vision first!'
+      });
+      return;
+    }
+
     setState('enriching');
     setActiveTab('feed');
     setAIFeedback([]);
     setIsTyping(true);
     
-    // Simulate AI thinking
-    setTimeout(() => {
-      setIsTyping(false);
+    try {
+      // Start live compose session with current brief
+      await startCompose(brief);
       
-      setTimeout(() => {
-        setIsTyping(true);
-        setTimeout(() => {
-          setIsTyping(false);
-          setAIFeedback([
-            '🎵 Analyzing your brief: "cozy neighborhood cafe"',
-            '✨ Detected vibe: Warm, inviting, background-friendly',
-            '🎼 Recommending: Jazz, Indie, Lo-fi genres',
-            '⚡ Optimal energy level: 4-6 (calm to moderate)'
-          ]);
-          
-          setSuggestions(AI_SUGGESTIONS);
-          setState('enriched');
-        }, 2000);
-      }, 1000);
-    }, 1500);
+      addChatMessage({
+        role: 'ai',
+        content: '🎵 Starting AI analysis of your brief...'
+      });
+      
+      // The live compose will handle the rest via the onComplete callback
+      setState('enriched');
+    } catch (error: any) {
+      console.error('Error starting AI enrichment:', error);
+      setIsTyping(false);
+      addChatMessage({
+        role: 'ai',
+        content: `❌ Error: ${error?.message || 'Failed to start AI analysis'}`
+      });
+      setState('idle');
+    }
   };
 
   const handleActionChip = (chip: ActionChip) => {
@@ -419,11 +435,7 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ onPlaylistGe
         setIsTyping(false);
         addChatMessage({
           role: 'ai',
-          content: 'Let me think of some alternative directions... How about trying a more upbeat afternoon vibe, or perhaps something even more minimal and ambient?',
-          actionChips: [
-            { id: 'apply-afternoon', label: 'Try Afternoon Energy', action: 'apply', data: AI_SUGGESTIONS[2] },
-            { id: 'apply-evening', label: 'Try Evening Unwind', action: 'apply', data: AI_SUGGESTIONS[3] }
-          ]
+          content: 'Let me think of some alternative directions... How about trying a more upbeat afternoon vibe, or perhaps something even more minimal and ambient?'
         });
       }, 2000);
     } else if (chip.action === 'explain') {
@@ -462,64 +474,170 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ onPlaylistGe
     }, 300);
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    if (!isAuthenticated || !orgId || !userId || !liveConfig || !liveBlueprints?.length) {
+      addChatMessage({
+        role: 'ai',
+        content: '❌ Please wait for AI analysis to complete before generating.'
+      });
+      return;
+    }
+
     setState('generating');
     setProgress(0);
     
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setState('completed');
-          
-          // Add completion message to chat
-          setTimeout(() => {
-            setIsTyping(true);
-            setTimeout(() => {
-              setIsTyping(false);
-              addChatMessage({
-                role: 'ai',
-                content: '🎉 Your playlist is ready! I\'ve composed ' + numTracks + ' unique tracks that capture that cozy cafe vibe perfectly. Each one flows naturally into the next. Enjoy!'
-              });
-              
-              // Redirect to playlist viewer
-              if (onPlaylistGenerated) {
-                const generatedPlaylist = {
-                  id: Date.now().toString(),
-                  name: brief.substring(0, 50) || 'New Playlist',
-                  description: `AI-generated playlist based on: ${brief}`,
-                  tracks: tracks.slice(0, numTracks).map((track) => ({
-                    id: track.id,
-                    title: track.title,
-                    artist: 'Lyra AI',
-                    duration: '3:24',
-                    album: 'AI Generated',
-                    genre: track.genre,
-                    energy: track.energy,
-                    bpm: track.bpm
-                  })),
-                  genres: selectedGenres,
-                  moods: selectedMoods,
-                  energy: energy[0],
-                  createdAt: new Date()
-                };
-                
-                setTimeout(() => {
-                  onPlaylistGenerated(generatedPlaylist);
-                }, 1500);
-              }
-            }, 1500);
-          }, 500);
-          
-          return 100;
-        }
-        return prev + 10;
+    try {
+      // 1) Enqueue playlist generation job
+      addChatMessage({
+        role: 'ai',
+        content: '🚀 Starting playlist generation...'
       });
-    }, 500);
 
-    addAIFeedItem({
-      message: 'Starting playlist generation with Lyra Pro...',
-      type: 'analysis'
+      const res = await fetch(`${baseUrl}/api/compose/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          config: liveConfig,
+          blueprints: liveBlueprints,
+        }),
+      });
+      
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error || `HTTP ${res.status}`);
+      }
+      
+      const jobId = json.jobId;
+      addChatMessage({
+        role: 'ai',
+        content: `✅ Job enqueued: ${jobId}`
+      });
+
+      // 2) Subscribe to job SSE for progress updates
+      const streamUrl = `${baseUrl}/api/jobs/${encodeURIComponent(jobId)}/events`;
+      const es = new EventSource(streamUrl);
+      let jobCompleted = false; // Track if job completed successfully
+
+      es.onmessage = async (e) => {
+        try {
+          const evt = JSON.parse(e.data);
+          
+          if (evt.type === "log") {
+            addChatMessage({
+              role: 'ai',
+              content: `🔧 ${evt.data?.message || ""}`
+            });
+          }
+          
+          if (evt.type === "progress") {
+            const progressPct = evt.data?.progress_pct || 0;
+            setProgress(progressPct);
+            addChatMessage({
+              role: 'ai',
+              content: `⏩ Progress: ${progressPct}% - ${evt.data?.message || ""}`
+            });
+          }
+          
+          if (evt.type === "succeeded") {
+            jobCompleted = true; // Mark job as completed
+            setProgress(100);
+            setState('completed');
+            
+            // Close connection after a small delay to ensure jobCompleted flag is set
+            setTimeout(() => {
+              es.close();
+            }, 100);
+            
+            addChatMessage({
+              role: 'ai',
+              content: '🎉 Your playlist is ready! I\'ve composed ' + liveBlueprints.length + ' unique tracks that capture that cozy cafe vibe perfectly. Each one flows naturally into the next. Enjoy!'
+            });
+            
+            // Call onPlaylistGenerated with real data
+            if (onPlaylistGenerated && evt.data?.result?.playlistId) {
+              const generatedPlaylist = {
+                id: evt.data.result.playlistId,
+                name: liveConfig.playlistTitle || brief.substring(0, 50) || 'New Playlist',
+                description: `AI-generated playlist based on: ${brief}`,
+                tracks: evt.data.result.tracks || [],
+                // include required summary fields
+                genres: liveConfig.genres || selectedGenres,
+                moods: liveConfig.moods || selectedMoods,
+                energy: liveConfig.energy || energy[0],
+                createdAt: new Date()
+              };
+              onPlaylistGenerated(generatedPlaylist);
+            }
+          }
+          
+          if (evt.type === "failed") {
+            jobCompleted = true; // Mark job as completed (even if failed)
+            setState('error');
+            
+            // Close connection after a small delay to ensure jobCompleted flag is set
+            setTimeout(() => {
+              es.close();
+            }, 100);
+            addChatMessage({
+              role: 'ai',
+              content: `❌ Generation failed: ${evt.data?.error || 'Unknown error'}`
+            });
+          }
+        } catch (parseError) {
+          console.error('Error parsing SSE event:', parseError);
+        }
+      };
+
+      es.onerror = (error) => {
+        console.log('SSE connection event:', error);
+        
+        // When job completes, server closes connection which triggers this event
+        // This is normal behavior, not an error
+        if (jobCompleted) {
+          console.log('SSE connection closed after successful job completion');
+          es.close();
+          return;
+        }
+        
+        // Check if the connection is already closed (readyState 2 = CLOSED)
+        if (es.readyState === EventSource.CLOSED) {
+          console.log('SSE connection already closed');
+          return;
+        }
+        
+        // Only treat as actual error if job hasn't completed and connection isn't closed
+        console.error('SSE error during job execution:', error);
+        es.close();
+        setState('error');
+        addChatMessage({
+          role: 'ai',
+          content: '❌ Connection error during generation'
+        });
+      };
+
+      // Store EventSource for cleanup
+      (window as any).currentJobEventSource = es;
+
+    } catch (error: any) {
+      console.error('Error starting generation:', error);
+      setState('error');
+      addChatMessage({
+        role: 'ai',
+        content: `❌ Error: ${error?.message || 'Failed to start generation'}`
+      });
+    }
+  };
+
+  const handleCancel = () => {
+    if ((window as any).currentJobEventSource) {
+      (window as any).currentJobEventSource.close();
+      (window as any).currentJobEventSource = null;
+    }
+    setState('idle');
+    setProgress(0);
+    addChatMessage({
+      role: 'ai',
+      content: '⏹️ Generation cancelled'
     });
   };
 
@@ -568,16 +686,19 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ onPlaylistGe
 
             {/* Generate Button */}
             <Button
-              onClick={handleGenerate}
-              disabled={state === 'generating'}
+              onClick={state === 'generating' ? handleCancel : handleGenerate}
               size="lg"
-              className="group relative overflow-hidden bg-gradient-to-r from-[#FF6F61] to-[#FF8A80] hover:shadow-2xl hover:shadow-[#FF6F61]/50 transition-all duration-300 text-white border-0 px-8"
+              className={`group relative overflow-hidden transition-all duration-300 text-white border-0 px-8 ${
+                state === 'generating' 
+                  ? 'bg-gradient-to-r from-red-500 to-red-600 hover:shadow-2xl hover:shadow-red-500/50' 
+                  : 'bg-gradient-to-r from-[#FF6F61] to-[#FF8A80] hover:shadow-2xl hover:shadow-[#FF6F61]/50'
+              }`}
             >
               <span className="relative z-10 flex items-center gap-2">
                 {state === 'generating' ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Generating...
+                    Cancel Generation
                   </>
                 ) : (
                   <>
@@ -614,8 +735,8 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({ onPlaylistGe
                   <CardContent className="space-y-4">
                     <Textarea
                       value={brief}
-                      onChange={(e) => setBrief(e.target.value)}
-                      placeholder="Morning energy mix for a cozy neighborhood cafe"
+                      onChange={(e) => handleBriefChange(e.target.value)}
+                      placeholder="Describe your playlist vision... e.g., 'Morning energy mix for a cozy neighborhood cafe' or 'Upbeat workout playlist for gym sessions'"
                       className="min-h-32 bg-[#1A1816] border-[#FF6F61]/20 text-[#FAF9F7] placeholder:text-[#6B5B5B] focus:border-[#FF8A80] focus:ring-[#FF8A80]/20 resize-none text-lg"
                     />
                     
