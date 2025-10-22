@@ -414,7 +414,7 @@ export const SongBuilder: React.FC<SongBuilderProps> = ({ onGenerationComplete }
                     <div className="space-y-2">
                       <div className="text-sm font-medium">Track Progress:</div>
                       <div className="space-y-1">
-                        {children.map((child, index) => (
+                        {children.map((child: any, index: number) => (
                           <div key={child.id} className="flex items-center gap-2 text-xs">
                             <span className="w-6 text-muted-foreground">#{index + 1}</span>
                             <span className={`${getStatusColor()}`}>
