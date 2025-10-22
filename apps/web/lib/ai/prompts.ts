@@ -63,13 +63,21 @@ Each track object MUST include these exact fields:
 - index: number (0-based, starting at 0)
 - title: string (1-100 chars, descriptive track name)
 - prompt: string (up to 1024 chars, highly detailed Mureka generation prompt - THIS IS CRITICAL)
-- lyrics: string (optional, "[Instrumental only]" if no vocals, otherwise original lyrics)
+- lyrics: string (REQUIRED - either "[Instrumental only]" for instrumental tracks OR actual song lyrics with verses, chorus, etc.)
 - bpm: number (40-240, specific BPM for this track)
 - genre: string (1-50 chars, primary genre for this track)
 - energy: number (1-10, track-specific energy level)
 - key: string (optional, musical key like "C", "Am", "F#m")
 - model: "mureka-7.5" (always use this)
 - durationSec: number (30-600, individual track duration)
+
+CRITICAL LYRICS GENERATION RULES:
+- For instrumental tracks: use exactly "[Instrumental only]"
+- For vocal tracks: write ACTUAL SONG LYRICS with proper structure (Verse 1, Chorus, Verse 2, etc.)
+- Lyrics should match the track's mood, energy, and genre
+- Include 2-3 verses and a catchy chorus for vocal tracks
+- Make lyrics appropriate for the target audience and context
+- Do NOT write descriptions of what lyrics should be - write the actual lyrics
 
 CRITICAL PROMPT ENGINEERING GUIDELINES:
 - The "prompt" field is the most important - make it rich, specific, and detailed (aim for 600-900 chars)
@@ -82,11 +90,12 @@ CRITICAL PROMPT ENGINEERING GUIDELINES:
 - Make each prompt actionable and evocative, not generic
 
 Return as a direct JSON array (no wrapper). Generate the number of tracks specified in the config (typically 3-8 tracks):
-[{"index": 0, "title": "Opening Track", "prompt": "Upbeat house with funky bassline, filtered disco samples, warm analog synths, four-on-the-floor beat...", "lyrics": "[Instrumental only]", "bpm": 120, "genre": "house", "energy": 7, "model": "mureka-7.5", "durationSec": 180}, {"index": 1, "title": "Second Track", "prompt": "...", "lyrics": "[Instrumental only]", "bpm": 125, "genre": "house", "energy": 8, "model": "mureka-7.5", "durationSec": 180}, ...]
+[{"index": 0, "title": "Opening Track", "prompt": "Upbeat house with funky bassline, filtered disco samples, warm analog synths, four-on-the-floor beat...", "lyrics": "[Instrumental only]", "bpm": 120, "genre": "house", "energy": 7, "model": "mureka-7.5", "durationSec": 180}, {"index": 1, "title": "Second Track", "prompt": "...", "lyrics": "Verse 1:\\nWalking through the city lights\\nEverything feels so right\\n\\nChorus:\\nThis is our time to shine\\nLet the music fill our minds", "bpm": 125, "genre": "house", "energy": 8, "model": "mureka-7.5", "durationSec": 180}, ...]
 
 IMPORTANT: 
 - Each track prompt should be unique and detailed (600+ characters)
 - Vary instrumentation and production style across tracks
 - Include dynamic elements (crescendos, builds, drops) in prompts where appropriate
 - Consider the overall playlist flow and how each track transitions in energy/vibe
-- Make prompts specific enough that they produce high-quality, distinct outputs`)};
+- Make prompts specific enough that they produce high-quality, distinct outputs
+- WRITE ACTUAL LYRICS, not descriptions of lyrics`)};

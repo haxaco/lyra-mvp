@@ -42,6 +42,8 @@ export default function SDKTestPage() {
   const [isRawDataOpen, setIsRawDataOpen] = useState(false);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [playlistMap, setPlaylistMap] = useState<Record<string, string>>({});
+  const [isGeneratingCovers, setIsGeneratingCovers] = useState(false);
+  const [regeneratingPlaylistId, setRegeneratingPlaylistId] = useState<string | null>(null);
 
   // Transform SDK track data to SongLibrary format
   const transformTrackForSongLibrary = (sdkTrack: any, playlistMap: Record<string, string> = {}) => {
@@ -147,6 +149,87 @@ export default function SDKTestPage() {
     }
   };
 
+  // Generate album covers for existing playlists
+  const handleGenerateAlbumCovers = async () => {
+    if (!playlists.data?.items?.length) {
+      alert("No playlists found to generate covers for");
+      return;
+    }
+
+    setIsGeneratingCovers(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const playlist of playlists.data.items) {
+        try {
+          const response = await fetch('/api/playlists/generate-album-cover', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              playlistId: playlist.id,
+              playlistName: playlist.name,
+            }),
+          });
+
+          if (response.ok) {
+            successCount++;
+            console.log(`Generated album cover for playlist: ${playlist.name}`);
+          } else {
+            errorCount++;
+            console.error(`Failed to generate cover for playlist: ${playlist.name}`);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Error generating cover for playlist ${playlist.name}:`, error);
+        }
+      }
+
+      alert(`Album cover generation completed!\nSuccess: ${successCount}\nErrors: ${errorCount}`);
+      
+      // Refresh playlists to show updated covers
+      playlists.refetch();
+    } catch (error) {
+      console.error("Failed to generate album covers:", error);
+      alert("Failed to generate album covers. Check console for details.");
+    } finally {
+      setIsGeneratingCovers(false);
+    }
+  };
+
+  const handleRegeneratePlaylistCover = async (playlistId: string, playlistName: string) => {
+    setRegeneratingPlaylistId(playlistId);
+    
+    try {
+      const response = await fetch('/api/playlists/generate-album-cover', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          playlistId: playlistId,
+          playlistName: playlistName,
+        }),
+      });
+
+      if (response.ok) {
+        console.log(`Regenerated album cover for playlist: ${playlistName}`);
+        // Refresh playlists to show updated cover
+        playlists.refetch();
+      } else {
+        console.error(`Failed to regenerate cover for playlist: ${playlistName}`);
+        alert(`Failed to regenerate cover for playlist: ${playlistName}`);
+      }
+    } catch (error) {
+      console.error(`Error regenerating cover for playlist ${playlistName}:`, error);
+      alert(`Error regenerating cover for playlist: ${playlistName}`);
+    } finally {
+      setRegeneratingPlaylistId(null);
+    }
+  };
+
   // Transform SDK playlist data to PlaylistCard format
   const transformPlaylistForCard = (sdkPlaylist: any) => {
     // Format duration from seconds to human readable
@@ -178,6 +261,7 @@ export default function SDKTestPage() {
       trackCount: trackCount,
       tags: tags,
       imageUrl: undefined, // No image URL from SDK
+      r2Key: sdkPlaylist.album_cover_r2_key, // Include R2 key for album cover
       onPlay: () => {
         console.log("Playing playlist:", sdkPlaylist);
         alert(`Playing playlist: ${sdkPlaylist.name} (${trackCount} tracks)`);
@@ -188,6 +272,9 @@ export default function SDKTestPage() {
       },
       onDelete: () => {
         handleDeletePlaylist(sdkPlaylist.id, sdkPlaylist.name);
+      },
+      onRegenerateCover: () => {
+        handleRegeneratePlaylistCover(sdkPlaylist.id, sdkPlaylist.name);
       }
     };
   };
@@ -707,7 +794,23 @@ export default function SDKTestPage() {
               {/* Playlist Cards Grid */}
               {playlists.data?.items?.length ? (
                 <div>
-                  <p className="font-semibold mb-4">{playlists.data.items.length} playlists:</p>
+                  <div className="flex justify-between items-center mb-4">
+                    <p className="font-semibold">{playlists.data.items.length} playlists:</p>
+                    <Button 
+                      onClick={handleGenerateAlbumCovers}
+                      disabled={isGeneratingCovers}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {isGeneratingCovers ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Generating Covers...
+                        </>
+                      ) : (
+                        'Generate Album Covers'
+                      )}
+                    </Button>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {playlists.data.items.map((playlist) => (
                       <PlaylistCard

@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const resolvedParams = await params;
     const { data: playlist, error: pErr } = await supa
       .from("playlists")
-      .select("id, name, location_id, schedule, created_at, config, job_id, track_count, total_duration_seconds")
+      .select("id, name, location_id, schedule, created_at, config, job_id, track_count, total_duration_seconds, album_cover_r2_key")
       .eq("id", resolvedParams.id)
       .single();
     if (pErr) throw pErr;

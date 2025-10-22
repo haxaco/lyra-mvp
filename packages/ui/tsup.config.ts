@@ -14,7 +14,7 @@ export default defineConfig({
   format: ["cjs", "esm"],
   dts: true,
   sourcemap: true,
-  external: ["react", "react-dom", "tailwindcss"],
+  external: ["react", "react-dom", "tailwindcss", "@lyra/core"],
   banner: {
     js: "'use client';",
   },

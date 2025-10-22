@@ -20,6 +20,7 @@ export * from './PlaylistLibrary';
 export * from './PlaylistViewer';
 export * from './SongBuilder';
 export * from './SongLibrary';
+export * from './AlbumCover';
 
 // UI & Layout Components
 // Note: TopNavBar, Sidebar, MusicPlayer are exported from layout/index.ts

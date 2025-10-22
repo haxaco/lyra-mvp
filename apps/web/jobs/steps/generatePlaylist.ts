@@ -5,6 +5,7 @@ import { uploadFromUrl, createPresignedGetUrl } from "@/lib/r2";
 import { generateMurekaTrackFromBlueprint } from "@/lib/mureka";
 import { safeBlueprint } from "@/lib/ai/safe";
 import { JobContext, JobProgressEmitter } from "../types";
+import { generateAlbumCoverFromConfig } from "@/lib/ai/albumCoverGenerator";
 
 function sb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -140,6 +141,33 @@ export async function generatePlaylistStep(
     });
 
     emit("progress", { index: i, trackId, mp3Key });
+  }
+
+  // Generate album cover
+  emit("log", { msg: "Generating album cover..." });
+  try {
+    const albumCoverResult = await generateAlbumCoverFromConfig(
+      payload.config,
+      payload.organizationId,
+      playlistId
+    );
+
+    // Update playlist with album cover
+    const { error: coverUpdateErr } = await supabase
+      .from("playlists")
+      .update({
+        album_cover_r2_key: albumCoverResult.r2Key
+      })
+      .eq("id", playlistId);
+
+    if (coverUpdateErr) {
+      console.warn('Failed to update playlist with album cover:', coverUpdateErr);
+    } else {
+      emit("log", { msg: "Album cover generated and saved." });
+    }
+  } catch (coverError) {
+    console.warn('Album cover generation failed:', coverError);
+    emit("log", { msg: "Album cover generation failed, continuing without cover." });
   }
 
   // Final playlist stats update to ensure everything is calculated correctly
