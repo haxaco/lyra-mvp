@@ -53,7 +53,11 @@ Example output structure:
 {"genres": ["house", "funk"], "bpmRange": [115, 125], "energy": 8, "moods": ["groovy", "uplifting", "conversation-friendly"], "durationSec": 360, "tracks": 6, "familyFriendly": true, "model": "auto", "allowExplicit": false, "playlistTitle": "Funk House Party Vibes", "description": "A sophisticated funk house playlist that encourages dancing without overpowering conversation...", "productionStyle": "filtered disco samples with modern synth layers", "dynamicFlow": "alternating peaks and dips to maintain energy", "vocalApproach": "mix of groovy vocals and pure instrumental funk", "targetContext": "house parties and social gatherings"}`),
 
   blueprints: fromEnv("PROMPTS_BLUEPRINTS", `
-You are a Mureka prompt engineer. Given a detailed playlist configuration, generate per-track blueprints optimized for music generation. Return a JSON array of track objects.
+You are a Mureka prompt engineer. Given a detailed playlist configuration, generate per-track blueprints optimized for music generation. 
+
+IMPORTANT: You MUST generate MULTIPLE tracks (typically 3-8 tracks) as a JSON array. Do not return a single track object.
+
+Return a JSON array of track objects.
 
 Each track object MUST include these exact fields:
 - index: number (0-based, starting at 0)
@@ -77,8 +81,8 @@ CRITICAL PROMPT ENGINEERING GUIDELINES:
 - Reference specific production techniques when relevant (sidechain compression, filters, reverb types, etc.)
 - Make each prompt actionable and evocative, not generic
 
-Return as a direct JSON array (no wrapper):
-[{"index": 0, "title": "Opening Track", "prompt": "Upbeat house with funky bassline, filtered disco samples, warm analog synths, four-on-the-floor beat...", "lyrics": "[Instrumental only]", "bpm": 120, "genre": "house", "energy": 7, "model": "mureka-7.5", "durationSec": 180}, ...]
+Return as a direct JSON array (no wrapper). Generate the number of tracks specified in the config (typically 3-8 tracks):
+[{"index": 0, "title": "Opening Track", "prompt": "Upbeat house with funky bassline, filtered disco samples, warm analog synths, four-on-the-floor beat...", "lyrics": "[Instrumental only]", "bpm": 120, "genre": "house", "energy": 7, "model": "mureka-7.5", "durationSec": 180}, {"index": 1, "title": "Second Track", "prompt": "...", "lyrics": "[Instrumental only]", "bpm": 125, "genre": "house", "energy": 8, "model": "mureka-7.5", "durationSec": 180}, ...]
 
 IMPORTANT: 
 - Each track prompt should be unique and detailed (600+ characters)

@@ -142,14 +142,28 @@ export async function POST(req: Request) {
           z.array(TrackBlueprintSchema).min(1).max(10),
           z.object({ blueprints: z.array(TrackBlueprintSchema).min(1).max(10) }),
           z.object({ tracks: z.array(TrackBlueprintSchema).min(1).max(10) }),
+          TrackBlueprintSchema, // Handle single blueprint object
         ]),
         temperature: temperature * 0.5,
         modelId,
       });
 
-      const list = Array.isArray(bp) 
-        ? bp 
-        : ('blueprints' in bp ? bp.blueprints : bp.tracks);
+      // Normalize to array - handle all possible response formats
+      let list: any[];
+      if (Array.isArray(bp)) {
+        list = bp;
+      } else if (bp && typeof bp === 'object') {
+        if ('blueprints' in bp && Array.isArray(bp.blueprints)) {
+          list = bp.blueprints;
+        } else if ('tracks' in bp && Array.isArray(bp.tracks)) {
+          list = bp.tracks;
+        } else {
+          // Single blueprint object - wrap in array
+          list = [bp];
+        }
+      } else {
+        throw new Error('Invalid blueprint response format');
+      }
       
       // Ensure all blueprints have required fields
       const normalizedBlueprints = list.map((blueprint: any) => ({
