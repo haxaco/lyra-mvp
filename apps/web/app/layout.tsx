@@ -1,12 +1,15 @@
 import "../styles/globals.css";
 import { ClientProviders } from "./providers/ClientProviders";
+import AppShell from "./AppShell";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
         <ClientProviders>
-          {children}
+          <AppShell>
+            {children}
+          </AppShell>
         </ClientProviders>
       </body>
     </html>
