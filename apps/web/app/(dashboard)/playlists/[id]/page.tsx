@@ -23,51 +23,8 @@ function formatTrackDuration(seconds?: number | null) {
 export default function PlaylistDetailsRoutedPage() {
   const params = useParams<{ id: string }>();
   const id = (params?.id as string) || '';
-  const { data, isLoading, error, isError, isFetching } = usePlaylist(id);
+  const { data, isLoading, error } = usePlaylist(id);
   const player = usePlayerContext();
-
-  // Debug logging - comprehensive
-  React.useEffect(() => {
-    console.log('🔍 [Playlist Debug] ========== START DEBUG ==========');
-    console.log('🔍 [Playlist Debug] Params:', params);
-    console.log('🔍 [Playlist Debug] Playlist ID:', id);
-    console.log('🔍 [Playlist Debug] ID is truthy?', !!id);
-    console.log('🔍 [Playlist Debug] isLoading:', isLoading);
-    console.log('🔍 [Playlist Debug] isFetching:', isFetching);
-    console.log('🔍 [Playlist Debug] isError:', isError);
-    console.log('🔍 [Playlist Debug] error:', error);
-    console.log('🔍 [Playlist Debug] Raw data:', data);
-    console.log('🔍 [Playlist Debug] Data type:', typeof data);
-    console.log('🔍 [Playlist Debug] Data keys:', data ? Object.keys(data) : 'N/A');
-    
-    if (error) {
-      console.error('❌ [Playlist Debug] Error object:', error);
-      console.error('❌ [Playlist Debug] Error message:', (error as any)?.message);
-      console.error('❌ [Playlist Debug] Error stack:', (error as any)?.stack);
-    }
-    
-    if (data) {
-      console.log('✅ [Playlist Debug] Data received:', data);
-      const p: any = (data as any)?.playlist;
-      const items: any[] = (data as any)?.items || [];
-      console.log('🔍 [Playlist Debug] Playlist object:', p);
-      console.log('🔍 [Playlist Debug] Items array:', items);
-      console.log('🔍 [Playlist Debug] Items length:', items?.length);
-      
-      if (items && items.length > 0) {
-        console.log('🔍 [Playlist Debug] First item structure:', items[0]);
-        console.log('🔍 [Playlist Debug] First item keys:', Object.keys(items[0]));
-        if (items[0].track) {
-          console.log('🔍 [Playlist Debug] First item.track:', items[0].track);
-          console.log('🔍 [Playlist Debug] First item.track keys:', Object.keys(items[0].track));
-          console.log('🔍 [Playlist Debug] First item.track.title:', items[0].track?.title);
-        }
-      }
-    } else {
-      console.warn('⚠️ [Playlist Debug] Data is undefined/null');
-    }
-    console.log('🔍 [Playlist Debug] ========== END DEBUG ==========');
-  }, [id, params, data, isLoading, error, isError, isFetching]);
 
   // Only extract data when it's actually available (not loading)
   const p: any = !isLoading && data ? (data as any)?.playlist : undefined;
@@ -84,39 +41,30 @@ export default function PlaylistDetailsRoutedPage() {
         trackCount: p.track_count ?? items.length ?? 0,
         totalTracks: p.track_count ?? items.length ?? 0,
         tracks: items.map((it: any, idx: number) => {
-          // Try multiple paths to get track title
-          const trackTitle = it.track?.title || it.title || it.track_title || `Track ${idx + 1}`;
-          const trackId = it.track_id || it.track?.id || it.id || String(idx + 1);
-          const trackDuration = it.track?.duration_seconds || it.duration_seconds || it.track_duration_seconds;
-          
-          console.log(`🔍 [Track ${idx}] Raw item:`, it);
-          console.log(`🔍 [Track ${idx}] Extracted title:`, trackTitle);
-          console.log(`🔍 [Track ${idx}] Extracted ID:`, trackId);
-          console.log(`🔍 [Track ${idx}] Extracted duration:`, trackDuration);
+          // Based on raw data structure: it.tracks (plural) contains the track object
+          // Primary path: it.tracks (plural) - this is the actual structure
+          // Fallback paths: it.track (singular) for backward compatibility
+          const trackObj = it.tracks || it.track;
+          const trackTitle = trackObj?.title || it.title || `Track ${idx + 1}`;
+          const trackId = it.track_id || trackObj?.id || it.id || String(idx + 1);
+          const trackDuration = trackObj?.duration_seconds || it.duration_seconds || it.track_duration_seconds;
+          const r2Key = trackObj?.r2_key;
           
           return {
             id: trackId,
             title: trackTitle,
             duration: formatTrackDuration(trackDuration),
-            energyLevel: it.track?.meta?.energy || it.energy || it.meta?.energy || 6,
-            provider: (it.track?.provider || it.provider || it.track?.meta?.provider || 'Mureka') as 'Mureka' | 'MusicGen' | 'Suno',
+            energyLevel: trackObj?.meta?.energy || trackObj?.blueprint?.energy || it.energy || it.meta?.energy || 6,
+            provider: (trackObj?.meta?.provider || trackObj?.provider || it.provider || 'Mureka') as 'Mureka' | 'MusicGen' | 'Suno',
             isLiked: false,
             isPlaying: idx === 0,
+            // Store r2_key and original item reference for later use
+            _r2Key: r2Key,
+            _originalItem: it,
           };
         }),
       }
     : null;
-
-  // Debug transformed data
-  React.useEffect(() => {
-    if (transformed) {
-      console.log('🔍 [Playlist Debug] Transformed playlist:', transformed);
-      console.log('🔍 [Playlist Debug] Transformed tracks:', transformed.tracks);
-      if (transformed.tracks.length > 0) {
-        console.log('🔍 [Playlist Debug] First transformed track:', transformed.tracks[0]);
-      }
-    }
-  }, [transformed]);
 
   // Show loading state immediately if loading
   if (isLoading) {
@@ -149,55 +97,58 @@ export default function PlaylistDetailsRoutedPage() {
 
   return (
     <div className="px-4 md:px-6 py-6">
-      {/* Debug Info Panel */}
-      <div className="mb-4 p-4 bg-muted rounded-lg text-xs font-mono">
-        <div className="font-bold mb-2">🔍 Debug Info:</div>
-        <div>ID: {id || '(empty)'}</div>
-        <div>isLoading: {String(isLoading)}</div>
-        <div>isError: {String(isError)}</div>
-        <div>hasData: {String(!!data)}</div>
-        <div>hasPlaylist: {String(!!p)}</div>
-        <div>itemsCount: {items?.length || 0}</div>
-        <div>hasTransformed: {String(!!transformed)}</div>
-        {error && (
-          <div className="mt-2 text-red-500">
-            Error: {String((error as any)?.message || error)}
-          </div>
-        )}
-        {data && (
-          <details className="mt-2">
-            <summary className="cursor-pointer">View Raw Data</summary>
-            <pre className="mt-2 overflow-auto max-h-40">
-              {JSON.stringify(data, null, 2)}
-            </pre>
-          </details>
-        )}
-      </div>
-
       <PlaylistViewer 
         playlist={transformed}
+        currentTrack={player.currentTrack}
+        isPlaying={player.isPlaying}
+        onPlayPause={() => player.setIsPlaying(!player.isPlaying)}
         onPlayTrack={async (track: any) => {
             if (track) {
-              // Find the original track data to get r2_key
+              // Find the transformed track to get the stored r2_key
+              const transformedTrack = transformed.tracks.find((t: any) => t.id === track.id);
               const trackIndex = transformed.tracks.findIndex((t: any) => t.id === track.id);
-              const originalItem = items.find((it: any) => {
-                const trackId = it.track_id || it.id || it.track?.id;
-                return trackId === track.id;
-              });
-              const r2Key = originalItem?.track?.r2_key;
+              
+              // Get r2_key from stored value or fallback to finding original item
+              let r2Key = transformedTrack?._r2Key;
+              if (!r2Key && transformedTrack?._originalItem) {
+                const trackObj = transformedTrack._originalItem.tracks || transformedTrack._originalItem.track;
+                r2Key = trackObj?.r2_key;
+              }
+              
+              // If still no r2_key, find it in items array as fallback
+              if (!r2Key) {
+                const originalItem = items.find((it: any) => {
+                  const trackId = it.track_id || (it.tracks || it.track)?.id || it.id;
+                  return trackId === track.id;
+                });
+                const trackObj = originalItem?.tracks || originalItem?.track;
+                r2Key = trackObj?.r2_key;
+              }
               
               // Build queue from all playlist tracks with r2_key for on-demand signing
-              const queue = transformed.tracks.map((t: any, idx: number) => {
-                const origItem = items.find((it: any) => {
-                  const tid = it.track_id || it.id || it.track?.id;
-                  return tid === t.id;
-                });
+              const queue = transformed.tracks.map((t: any) => {
+                // Try to get r2_key from stored value first
+                let tR2Key = t._r2Key;
+                if (!tR2Key && t._originalItem) {
+                  const trackObj = t._originalItem.tracks || t._originalItem.track;
+                  tR2Key = trackObj?.r2_key;
+                }
+                // Fallback to finding in items array
+                if (!tR2Key) {
+                  const origItem = items.find((it: any) => {
+                    const tid = it.track_id || (it.tracks || it.track)?.id || it.id;
+                    return tid === t.id;
+                  });
+                  const trackObj = origItem?.tracks || origItem?.track;
+                  tR2Key = trackObj?.r2_key;
+                }
+                
                 return {
                   id: t.id,
                   title: t.title,
                   artist: 'Lyra AI',
                   image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop',
-                  r2Key: origItem?.track?.r2_key,
+                  r2Key: tR2Key,
                   playlistId: transformed.id,
                   playlistName: transformed.name,
                 };

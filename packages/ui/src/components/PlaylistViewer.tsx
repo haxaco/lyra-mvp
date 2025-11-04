@@ -45,20 +45,28 @@ export interface PlaylistData {
 interface PlaylistViewerProps {
   playlist: PlaylistData;
   onPlayTrack?: (track: any) => void;
+  currentTrack?: { id: string } | null; // Global player's current track
+  isPlaying?: boolean; // Global player's playing state
+  onPlayPause?: () => void; // Optional callback to toggle play/pause
 }
 
-export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passedPlaylist, onPlayTrack }) => {
+export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ 
+  playlist: passedPlaylist, 
+  onPlayTrack,
+  currentTrack: globalCurrentTrack,
+  isPlaying: globalIsPlaying = false,
+  onPlayPause
+}) => {
   // Use playlist passed in; parent is responsible for loading and transforming
   const [playlist, setPlaylist] = useState<PlaylistData>(passedPlaylist);
-  const [currentTrack, setCurrentTrack] = useState<string>('1');
-  const [isPlaying, setIsPlaying] = useState(true);
+  
+  // Use global player state if provided, otherwise fall back to local state
+  const currentTrackId = globalCurrentTrack?.id || null;
+  const isPlaying = globalIsPlaying;
 
   // Update local playlist when prop changes (e.g., navigating to a new /playlists/:id)
   useEffect(() => {
     setPlaylist(passedPlaylist);
-    // reset playback state for new playlist
-    setCurrentTrack('1');
-    setIsPlaying(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [passedPlaylist?.id]);
 
@@ -84,10 +92,13 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passed
   };
 
   const handlePlayTrack = (trackId: string) => {
-    setCurrentTrack(trackId);
-    setIsPlaying(true);
+    // If this track is already playing, toggle play/pause
+    if (currentTrackId === trackId && onPlayPause) {
+      onPlayPause();
+      return;
+    }
     
-    // Find the track and pass it to the global player
+    // Otherwise, play the track
     const track = playlist.tracks.find((t: Track) => t.id === trackId);
     if (track && onPlayTrack) {
       onPlayTrack({
@@ -243,15 +254,15 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passed
                     {/* Play Button */}
                     <Button
                       size="sm"
-                      variant={track.id === currentTrack && isPlaying ? "default" : "ghost"}
+                      variant={track.id === currentTrackId && isPlaying ? "default" : "ghost"}
                       className={`w-10 h-10 rounded-full ${
-                        track.id === currentTrack && isPlaying 
+                        track.id === currentTrackId && isPlaying 
                           ? 'bg-gradient-coral text-white hover:opacity-90' 
                           : 'hover:bg-primary/20'
                       }`}
                       onClick={() => handlePlayTrack(track.id)}
                     >
-                      {track.id === currentTrack && isPlaying ? (
+                      {track.id === currentTrackId && isPlaying ? (
                         <Pause className="w-4 h-4" />
                       ) : (
                         <Play className="w-4 h-4" />
