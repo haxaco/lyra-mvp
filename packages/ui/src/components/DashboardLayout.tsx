@@ -14,6 +14,7 @@ interface DashboardLayoutProps {
   isPlaying: boolean;
   onPlayPause: () => void;
   onGoToPlaylist?: (playlist: any) => void;
+  onNavigate?: (path: string) => void;
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -25,7 +26,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   currentTrack,
   isPlaying,
   onPlayPause,
-  onGoToPlaylist
+  onGoToPlaylist,
+  onNavigate
 }) => {
   // Sidebar collapse state - responsive default
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -80,18 +82,42 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         onViewChange={onViewChange}
         onNotificationsClick={onNotificationsClick}
         notificationCount={notificationCount}
-        onGenerateClick={() => onViewChange('playlists')}
+        onGenerateClick={() => onNavigate?.('/compose')}
         onMenuToggle={toggleSidebar}
         sidebarCollapsed={sidebarCollapsed}
       />
 
       {/* Layout container below TopNavBar */}
       <div className="flex flex-1 pt-14 md:pt-16 overflow-hidden">
-        {/* Sidebar - collapsible */}
         <Sidebar
           currentView={currentView}
           onViewChange={(view) => {
-            onViewChange(view);
+            // Map dashboard views to URLs
+            switch (view) {
+              case 'overview':
+                onNavigate?.('/');
+                break;
+              case 'playlist-library':
+                onNavigate?.('/playlists');
+                break;
+              case 'song-library':
+                onNavigate?.('/library');
+                break;
+              case 'analytics':
+                onNavigate?.('/analytics');
+                break;
+              case 'billing':
+                onNavigate?.('/billing');
+                break;
+              case 'settings':
+                onNavigate?.('/settings');
+                break;
+              case 'support':
+                onNavigate?.('/support');
+                break;
+              default:
+                onViewChange(view);
+            }
             closeMobileSidebar();
           }}
           onNotificationsClick={onNotificationsClick}
@@ -101,12 +127,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         />
 
         {/* Mobile Overlay */}
-        {sidebarVisible && (
+        {/* {sidebarVisible && (
           <div 
             className="fixed inset-0 bg-black/50 z-30 lg:hidden"
             onClick={closeMobileSidebar}
           />
-        )}
+        )} */}
 
         {/* Main Content Area */}
         <main 

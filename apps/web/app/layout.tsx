@@ -1,15 +1,12 @@
-import "../styles/globals.css";
+import "@lyra/ui/styles";
 import { ClientProviders } from "./providers/ClientProviders";
-import AppShell from "./AppShell";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <ClientProviders>
-          <AppShell>
-            {children}
-          </AppShell>
+          {children}
         </ClientProviders>
       </body>
     </html>

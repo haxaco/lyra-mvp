@@ -6,32 +6,29 @@ import lyraLogoLight from '../assets/1524d315371893ccd33b602f2291ee7ae8e0063f.pn
 
 interface SignInProps {
   onSignIn: () => void;
+  onGoogleSignIn?: () => void;
+  onAppleSignIn?: () => void;
+  onEmailSignIn?: (email: string) => void;
 }
 
-export const SignIn: React.FC<SignInProps> = ({ onSignIn }) => {
+export const SignIn: React.FC<SignInProps> = ({ onSignIn, onGoogleSignIn, onAppleSignIn, onEmailSignIn }) => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
 
   const handleGoogleSignIn = () => {
-    // Mock Google OAuth
-    setTimeout(() => {
-      onSignIn();
-    }, 500);
+    if (onGoogleSignIn) return onGoogleSignIn();
+    setTimeout(() => { onSignIn(); }, 500);
   };
 
   const handleAppleSignIn = () => {
-    // Mock Apple OAuth
-    setTimeout(() => {
-      onSignIn();
-    }, 500);
+    if (onAppleSignIn) return onAppleSignIn();
+    setTimeout(() => { onSignIn(); }, 500);
   };
 
   const handleEmailSignIn = (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock email sign in
-    setTimeout(() => {
-      onSignIn();
-    }, 500);
+    if (onEmailSignIn) return onEmailSignIn(email);
+    setTimeout(() => { onSignIn(); }, 500);
   };
 
   return (

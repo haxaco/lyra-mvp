@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '../primitives/button';
 import { Card, CardContent } from '../primitives/card';
 import { Badge } from '../primitives/badge';
@@ -24,143 +24,43 @@ interface Track {
   title: string;
   duration: string;
   energyLevel: number;
-  provider: 'Mureka' | 'MusicGen' | 'Suno';
+  provider: 'Mureka' | 'MusicGen' | 'Suno' | string;
   isLiked: boolean;
   isPlaying: boolean;
 }
 
-interface PlaylistData {
+export interface PlaylistData {
   id: string;
   name: string;
-  location: string;
+  location?: string;
   totalTracks: number;
   totalDuration: string;
-  averageEnergy: number;
-  hoursStreamed: number;
-  skipRate: number;
-  likes: number;
+  averageEnergy?: number;
+  hoursStreamed?: number;
+  skipRate?: number;
+  likes?: number;
   tracks: Track[];
 }
 
-// Mock data
-const mockPlaylist: PlaylistData = {
-  id: '1',
-  name: 'Morning Brew Vibes',
-  location: 'Downtown Café',
-  totalTracks: 47,
-  totalDuration: '3h 24m',
-  averageEnergy: 6.8,
-  hoursStreamed: 142,
-  skipRate: 8.2,
-  likes: 89,
-  tracks: [
-    {
-      id: '1',
-      title: 'Gentle Coffee House Ambience',
-      duration: '4:23',
-      energyLevel: 5,
-      provider: 'Mureka',
-      isLiked: true,
-      isPlaying: true
-    },
-    {
-      id: '2',
-      title: 'Warm Morning Jazz Flow',
-      duration: '3:47',
-      energyLevel: 6,
-      provider: 'Suno',
-      isLiked: false,
-      isPlaying: false
-    },
-    {
-      id: '3',
-      title: 'Acoustic Sunrise Melody',
-      duration: '5:12',
-      energyLevel: 7,
-      provider: 'MusicGen',
-      isLiked: true,
-      isPlaying: false
-    },
-    {
-      id: '4',
-      title: 'Smooth Café Instrumental',
-      duration: '4:56',
-      energyLevel: 5,
-      provider: 'Mureka',
-      isLiked: false,
-      isPlaying: false
-    },
-    {
-      id: '5',
-      title: 'Cozy Morning Atmosphere',
-      duration: '6:18',
-      energyLevel: 4,
-      provider: 'Suno',
-      isLiked: true,
-      isPlaying: false
-    },
-    {
-      id: '6',
-      title: 'Urban Coffee Vibes',
-      duration: '3:29',
-      energyLevel: 8,
-      provider: 'MusicGen',
-      isLiked: false,
-      isPlaying: false
-    }
-  ]
-};
-
 interface PlaylistViewerProps {
-  playlist?: any;
+  playlist: PlaylistData;
   onPlayTrack?: (track: any) => void;
 }
 
 export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passedPlaylist, onPlayTrack }) => {
-  // Generate mock tracks if not provided
-  const generateMockTracks = (count: number): Track[] => {
-    const providers: Array<'Mureka' | 'MusicGen' | 'Suno'> = ['Mureka', 'MusicGen', 'Suno'];
-    const trackTitles = [
-      'Gentle Coffee House Ambience',
-      'Warm Morning Jazz Flow',
-      'Acoustic Sunrise Melody',
-      'Smooth Afternoon Groove',
-      'Cozy Corner Atmosphere',
-      'Urban Coffee Vibes',
-      'Relaxing Piano Interlude',
-      'Mellow Beats Session',
-      'Ambient Space Sounds',
-      'Tranquil Garden Music',
-    ];
-    
-    return Array.from({ length: Math.min(count, 10) }, (_, i) => ({
-      id: `${i + 1}`,
-      title: trackTitles[i % trackTitles.length],
-      duration: `${Math.floor(Math.random() * 3) + 3}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
-      energyLevel: Math.floor(Math.random() * 10) + 1,
-      provider: providers[i % providers.length],
-      isLiked: Math.random() > 0.7,
-      isPlaying: i === 0,
-    }));
-  };
-
-  // Convert passed playlist to PlaylistData format if needed
-  const convertedPlaylist = passedPlaylist ? {
-    id: passedPlaylist.id || mockPlaylist.id,
-    name: passedPlaylist.title || passedPlaylist.name || mockPlaylist.name,
-    location: passedPlaylist.location || 'Your Location',
-    totalTracks: passedPlaylist.trackCount || passedPlaylist.totalTracks || mockPlaylist.totalTracks,
-    totalDuration: passedPlaylist.duration || passedPlaylist.totalDuration || mockPlaylist.totalDuration,
-    averageEnergy: passedPlaylist.averageEnergy || 6.5,
-    hoursStreamed: passedPlaylist.hoursStreamed || 100,
-    skipRate: passedPlaylist.skipRate || 8.5,
-    likes: passedPlaylist.likes || 75,
-    tracks: passedPlaylist.tracks || generateMockTracks(passedPlaylist.trackCount || passedPlaylist.totalTracks || 10),
-  } : mockPlaylist;
-
-  const [playlist] = useState<PlaylistData>(convertedPlaylist);
+  // Use playlist passed in; parent is responsible for loading and transforming
+  const [playlist, setPlaylist] = useState<PlaylistData>(passedPlaylist);
   const [currentTrack, setCurrentTrack] = useState<string>('1');
   const [isPlaying, setIsPlaying] = useState(true);
+
+  // Update local playlist when prop changes (e.g., navigating to a new /playlists/:id)
+  useEffect(() => {
+    setPlaylist(passedPlaylist);
+    // reset playback state for new playlist
+    setCurrentTrack('1');
+    setIsPlaying(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passedPlaylist?.id]);
 
   const getEnergyColor = (level: number) => {
     if (level <= 3) return 'bg-blue-400';
@@ -218,9 +118,11 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passed
               <h1 className="text-4xl font-bold text-foreground mb-2 font-['Outfit']">
                 {playlist.name}
               </h1>
-              <p className="text-xl text-muted-foreground font-medium">
-                {playlist.location}
-              </p>
+              {playlist.location && (
+                <p className="text-xl text-muted-foreground font-medium">
+                  {playlist.location}
+                </p>
+              )}
             </div>
             <div className="flex gap-3">
               <Button 
@@ -293,7 +195,7 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passed
                       </span>
                     </div>
                     <div className="text-3xl font-bold font-['Outfit']">
-                      {playlist.averageEnergy}/10
+                      {(playlist.averageEnergy ?? 0)}/10
                     </div>
                   </div>
                   
@@ -305,7 +207,7 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passed
                       </span>
                     </div>
                     <div className="text-3xl font-bold font-['Outfit']">
-                      {playlist.likes}
+                      {playlist.likes ?? 0}
                     </div>
                   </div>
                 </div>
@@ -326,7 +228,12 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passed
           <Card className="border-0 shadow-sm">
             <ScrollArea className="h-[400px]">
               <div className="divide-y divide-border/50">
-                {playlist.tracks.map((track, index) => (
+                {(playlist.tracks ?? []).length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground text-sm">
+                    No tracks available for this playlist.
+                  </div>
+                ) : (
+                  (playlist.tracks ?? []).map((track, index) => (
                   <div 
                     key={track.id}
                     className={`p-4 flex items-center gap-4 hover:bg-secondary/30 transition-colors ${
@@ -407,7 +314,8 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passed
                       </Button>
                     </div>
                   </div>
-                ))}
+                ))
+                )}
               </div>
             </ScrollArea>
           </Card>
@@ -431,12 +339,12 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passed
                 </div>
               </div>
               <div className="text-2xl font-bold font-['Outfit'] text-primary">
-                {playlist.hoursStreamed}h
+                {(playlist.hoursStreamed ?? 0)}h
               </div>
               <div className="mt-2 bg-secondary rounded-full h-2">
                 <div 
                   className="bg-gradient-coral h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((playlist.hoursStreamed / 200) * 100, 100)}%` }}
+                  style={{ width: `${Math.min((((playlist.hoursStreamed ?? 0) / 200) * 100), 100)}%` }}
                 />
               </div>
             </CardContent>
@@ -454,7 +362,7 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({ playlist: passed
                 </div>
               </div>
               <div className="text-2xl font-bold font-['Outfit'] text-yellow-600">
-                {playlist.skipRate}%
+                {(playlist.skipRate ?? 0)}%
               </div>
               <p className="text-xs text-muted-foreground mt-1 font-['Inter']">
                 Lower is better

@@ -7,12 +7,27 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!orgId) return NextResponse.json({ ok:false, error:"No org in session" }, { status: 401 });
 
     const resolvedParams = await params;
+    
+    // Filter by both id and organization_id to ensure RLS compliance and prevent "Cannot coerce" errors
     const { data: playlist, error: pErr } = await supa
       .from("playlists")
       .select("id, name, location_id, schedule, created_at, config, job_id, track_count, total_duration_seconds, album_cover_r2_key")
       .eq("id", resolvedParams.id)
+      .eq("organization_id", orgId)
       .single();
-    if (pErr) throw pErr;
+    
+    // Handle case where playlist doesn't exist or doesn't belong to user's org
+    if (pErr) {
+      // Check if it's a "not found" error (PGRST116 = no rows returned)
+      if (pErr.code === 'PGRST116' || pErr.message?.includes('JSON object requested, multiple (or no) rows returned')) {
+        return NextResponse.json({ ok:false, error:"Playlist not found" }, { status: 404 });
+      }
+      throw pErr;
+    }
+
+    if (!playlist) {
+      return NextResponse.json({ ok:false, error:"Playlist not found" }, { status: 404 });
+    }
 
     const { data: items, error: itErr } = await supa
       .from("playlist_items")

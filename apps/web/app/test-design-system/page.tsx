@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { SignIn, OnboardingFlow, Dashboard, ThemeProvider } from '@lyra/ui/dist/components';
 import { Toaster } from '@lyra/ui';
 
 export default function TestDesignSystemPage() {
+  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -57,7 +59,7 @@ export default function TestDesignSystemPage() {
         ) : !isOnboarded ? (
           <OnboardingFlow onComplete={handleOnboardingComplete} />
         ) : (
-          <Dashboard />
+          <Dashboard onNavigate={(path) => router.push(path)} />
         )}
         <Toaster />
       </div>

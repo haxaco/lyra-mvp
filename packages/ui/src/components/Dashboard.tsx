@@ -28,7 +28,11 @@ export type DashboardView =
   | 'status'
   | 'showcase';
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onNavigate?: (path: string) => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [currentView, setCurrentView] = useState<DashboardView>('overview');
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -47,14 +51,16 @@ export const Dashboard: React.FC = () => {
       case 'overview':
         return <Overview onPlayTrack={setCurrentTrack} />;
       case 'playlists':
+        console.log('[Dashboard] Rendering PlaylistBuilder');
         return <PlaylistBuilder onPlayTrack={setCurrentTrack} />;
       case 'playlist-library':
+        console.log('[Dashboard] Rendering PlaylistLibrary');
         return <PlaylistLibrary 
-          onCreatePlaylist={() => setCurrentView('playlists')} 
+          onCreatePlaylist={() => onNavigate?.('/compose')} 
           onPlayTrack={setCurrentTrack}
           onViewPlaylist={(playlist) => {
-            setSelectedPlaylist(playlist);
-            setCurrentView('playlist-viewer');
+            console.log('[Dashboard] Navigating to playlist details:', playlist);
+            onNavigate?.(`/playlists/${playlist.id}`);
           }}
         />;
       case 'song-library':
@@ -94,6 +100,7 @@ export const Dashboard: React.FC = () => {
           setSelectedPlaylist(playlist);
           setCurrentView('playlist-viewer');
         }}
+        onNavigate={onNavigate}
       >
         {renderView()}
       </DashboardLayout>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '../primitives/button';
 import { PlaylistCard } from './PlaylistCard';
 import { Plus, Search, SlidersHorizontal, Music2 } from 'lucide-react';
@@ -22,6 +22,7 @@ interface Playlist {
   imageUrl?: string;
   createdAt: string;
   lastPlayed?: string;
+  r2Key?: string | null;
 }
 
 interface PlaylistLibraryProps {
@@ -39,100 +40,51 @@ export const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
   const [sortBy, setSortBy] = useState('recent');
   const [filterMood, setFilterMood] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  // Fetch playlists from API
+  const [allPlaylists, setAllPlaylists] = useState<Playlist[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Mock playlists data
-  const allPlaylists: Playlist[] = [
-    {
-      id: '1',
-      title: 'Morning Energy Boost',
-      description: 'Uplifting tracks to start your day with positive vibes',
-      duration: '2h 34m',
-      trackCount: 42,
-      tags: ['Energetic', 'Upbeat', 'Morning'],
-      createdAt: '2025-10-09',
-      lastPlayed: '2025-10-09',
-    },
-    {
-      id: '2',
-      title: 'Focus Flow',
-      description: 'Ambient music designed for deep work and concentration',
-      duration: '3h 15m',
-      trackCount: 38,
-      tags: ['Calm', 'Ambient', 'Focus'],
-      createdAt: '2025-10-08',
-      lastPlayed: '2025-10-08',
-    },
-    {
-      id: '3',
-      title: 'Café Lounge Vibes',
-      description: 'Smooth jazz and lounge music perfect for cafés',
-      duration: '4h 12m',
-      trackCount: 56,
-      tags: ['Chill', 'Jazz', 'Lounge'],
-      createdAt: '2025-10-07',
-      lastPlayed: '2025-10-09',
-    },
-    {
-      id: '4',
-      title: 'Gym Motivation',
-      description: 'High-energy beats to power through your workout',
-      duration: '1h 45m',
-      trackCount: 28,
-      tags: ['Energetic', 'Intense', 'Workout'],
-      createdAt: '2025-10-06',
-      lastPlayed: '2025-10-07',
-    },
-    {
-      id: '5',
-      title: 'Evening Wind Down',
-      description: 'Relaxing melodies to help you unwind after a long day',
-      duration: '2h 20m',
-      trackCount: 35,
-      tags: ['Calm', 'Relaxing', 'Evening'],
-      createdAt: '2025-10-05',
-      lastPlayed: '2025-10-08',
-    },
-    {
-      id: '6',
-      title: 'Retail Ambience',
-      description: 'Contemporary background music for boutique stores',
-      duration: '3h 45m',
-      trackCount: 48,
-      tags: ['Chill', 'Upbeat', 'Retail'],
-      createdAt: '2025-10-04',
-      lastPlayed: '2025-10-09',
-    },
-    {
-      id: '7',
-      title: 'Spa Serenity',
-      description: 'Peaceful soundscapes for wellness and relaxation',
-      duration: '5h 00m',
-      trackCount: 62,
-      tags: ['Calm', 'Peaceful', 'Spa'],
-      createdAt: '2025-10-03',
-      lastPlayed: '2025-10-06',
-    },
-    {
-      id: '8',
-      title: 'Restaurant Elegance',
-      description: 'Sophisticated dining music for upscale restaurants',
-      duration: '3h 30m',
-      trackCount: 44,
-      tags: ['Chill', 'Jazz', 'Elegant'],
-      createdAt: '2025-10-02',
-      lastPlayed: '2025-10-09',
-    },
-    {
-      id: '9',
-      title: 'Sunset Grooves',
-      description: 'Smooth beats for golden hour relaxation',
-      duration: '2h 15m',
-      trackCount: 32,
-      tags: ['Chill', 'Upbeat', 'Sunset'],
-      createdAt: '2025-10-01',
-      lastPlayed: '2025-10-05',
-    },
-  ];
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        setLoadError(null);
+        const res = await fetch('/api/playlists', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to load playlists');
+        const json = await res.json();
+        const items = (json?.items || []) as any[];
+        const formatDuration = (seconds?: number | null) => {
+          if (!seconds || seconds <= 0) return '—';
+          const h = Math.floor(seconds / 3600);
+          const m = Math.floor((seconds % 3600) / 60);
+          return h > 0 ? `${h}h ${m}m` : `${m}m`;
+        };
+        const mapped: Playlist[] = items.map((p) => ({
+          id: p.id,
+          title: p.name,
+          description: `AI-generated playlist created on ${new Date(p.created_at).toLocaleDateString()}`,
+          duration: formatDuration(p.total_duration_seconds),
+          trackCount: p.track_count ?? 0,
+          tags: [],
+          imageUrl: undefined,
+          createdAt: p.created_at,
+          lastPlayed: undefined,
+          r2Key: p.album_cover_r2_key ?? null,
+        }));
+        if (isMounted) setAllPlaylists(mapped);
+      } catch (e:any) {
+        if (isMounted) setLoadError(e?.message || 'Failed to load playlists');
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Available mood tags
   const moodTags = ['all', 'Energetic', 'Calm', 'Chill', 'Upbeat', 'Jazz', 'Ambient'];
@@ -275,7 +227,19 @@ export const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
 
       {/* Playlists Grid */}
       <div className="px-8 pb-8">
-        {filteredPlaylists.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-72 rounded-lg bg-card border border-border animate-pulse" />
+            ))}
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-16">
+            <h3 className="text-foreground mb-2">Failed to load playlists</h3>
+            <p className="text-muted-foreground mb-6">{loadError}</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
+        ) : filteredPlaylists.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mx-auto mb-4">
               <Music2 className="w-8 h-8 text-muted-foreground" />
@@ -303,8 +267,24 @@ export const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
                 trackCount={playlist.trackCount}
                 tags={playlist.tags}
                 imageUrl={playlist.imageUrl}
+                r2Key={playlist.r2Key}
                 onPlay={() => handlePlayPlaylist(playlist)}
-                onViewDetails={() => onViewPlaylist?.(playlist)}
+                onViewDetails={() => {
+                  try {
+                    // Helpful debug payload when navigating to details
+                    console.log('[PlaylistLibrary] View Details clicked', {
+                      id: playlist.id,
+                      title: playlist.title,
+                      trackCount: playlist.trackCount,
+                      duration: playlist.duration,
+                      r2Key: playlist.r2Key,
+                      createdAt: playlist.createdAt,
+                      lastPlayed: playlist.lastPlayed,
+                      tags: playlist.tags,
+                    });
+                  } catch {}
+                  onViewPlaylist?.(playlist);
+                }}
               />
             ))}
           </div>

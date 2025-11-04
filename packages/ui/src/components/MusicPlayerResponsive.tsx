@@ -22,12 +22,16 @@ interface MusicPlayerProps {
   currentTrack: any;
   onGoToPlaylist?: (playlist: any) => void;
   onPlayStateChange?: (isPlaying: boolean) => void;
+  onNext?: () => void;
+  onPrevious?: () => void;
 }
 
 export const MusicPlayerResponsive: React.FC<MusicPlayerProps> = ({ 
   currentTrack, 
   onGoToPlaylist,
-  onPlayStateChange
+  onPlayStateChange,
+  onNext,
+  onPrevious
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -56,6 +60,10 @@ export const MusicPlayerResponsive: React.FC<MusicPlayerProps> = ({
 
     const handleEnded = () => {
       setIsPlaying(false);
+      // Auto-play next track if available
+      if (onNext) {
+        onNext();
+      }
     };
 
     const handleError = (e: Event) => {
@@ -74,7 +82,7 @@ export const MusicPlayerResponsive: React.FC<MusicPlayerProps> = ({
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
     };
-  }, []);
+  }, [onNext]);
 
   // Handle play/pause when isPlaying state changes
   useEffect(() => {
@@ -258,7 +266,9 @@ export const MusicPlayerResponsive: React.FC<MusicPlayerProps> = ({
             <Button 
               variant="ghost" 
               size="sm" 
-              className="text-charcoal dark:text-white hover:bg-white/20 h-14 w-14 rounded-full p-0"
+              onClick={onPrevious}
+              disabled={!onPrevious}
+              className="text-charcoal dark:text-white hover:bg-white/20 h-14 w-14 rounded-full p-0 disabled:opacity-50"
             >
               <SkipBack className="w-7 h-7" />
             </Button>
@@ -277,7 +287,9 @@ export const MusicPlayerResponsive: React.FC<MusicPlayerProps> = ({
             <Button 
               variant="ghost" 
               size="sm" 
-              className="text-charcoal dark:text-white hover:bg-white/20 h-14 w-14 rounded-full p-0"
+              onClick={onNext}
+              disabled={!onNext}
+              className="text-charcoal dark:text-white hover:bg-white/20 h-14 w-14 rounded-full p-0 disabled:opacity-50"
             >
               <SkipForward className="w-7 h-7" />
             </Button>
@@ -382,7 +394,13 @@ export const MusicPlayerResponsive: React.FC<MusicPlayerProps> = ({
               <Shuffle className="w-3.5 h-3.5" />
             </Button>
             
-            <Button variant="ghost" size="sm" className="text-charcoal dark:text-white hover:bg-white/10 h-9 w-9 p-0">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onPrevious}
+              disabled={!onPrevious}
+              className="text-charcoal dark:text-white hover:bg-white/10 h-9 w-9 p-0 disabled:opacity-50"
+            >
               <SkipBack className="w-4 h-4" />
             </Button>
             
@@ -397,7 +415,13 @@ export const MusicPlayerResponsive: React.FC<MusicPlayerProps> = ({
               )}
             </Button>
             
-            <Button variant="ghost" size="sm" className="text-charcoal dark:text-white hover:bg-white/10 h-9 w-9 p-0">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onNext}
+              disabled={!onNext}
+              className="text-charcoal dark:text-white hover:bg-white/10 h-9 w-9 p-0 disabled:opacity-50"
+            >
               <SkipForward className="w-4 h-4" />
             </Button>
             
