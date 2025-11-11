@@ -48,6 +48,13 @@ export const env = {
   
   // Mureka API
   get MUREKA_API_KEY() { return requireEnv('MUREKA_API_KEY'); },
+
+  // MusicGPT (optional, gated via feature flag)
+  get MUSICGPT_API_URL() { return process.env.MUSICGPT_API_URL || 'https://api.musicgpt.com/api/public/v1'; },
+  get MUSICGPT_API_KEY() { return process.env.MUSICGPT_API_KEY; },
+  get ENABLE_PROVIDER_MUSICGPT() { return (process.env.ENABLE_PROVIDER_MUSICGPT || '').toLowerCase() === 'true'; },
+  get MUSICGPT_WEBHOOK_SECRET() { return process.env.MUSICGPT_WEBHOOK_SECRET; },
+  get PUBLIC_R2_BASE_URL() { return process.env.PUBLIC_R2_BASE_URL; },
   
   // Optional debug overrides
   get DEBUG_USER_ID() { return process.env.DEBUG_USER_ID; },
@@ -77,7 +84,14 @@ export function validateAllEnv() {
       R2_ACCESS_KEY_ID: env.R2_ACCESS_KEY_ID,
       R2_SECRET_ACCESS_KEY: env.R2_SECRET_ACCESS_KEY,
       MUREKA_API_KEY: env.MUREKA_API_KEY,
+      MUSICGPT_FLAG: env.ENABLE_PROVIDER_MUSICGPT,
     };
+
+    if (env.ENABLE_PROVIDER_MUSICGPT) {
+      if (!env.MUSICGPT_API_KEY) {
+        throw new Error('ENABLE_PROVIDER_MUSICGPT is true but MUSICGPT_API_KEY is not set');
+      }
+    }
   } catch (error) {
     if (error instanceof Error) {
       // Mask sensitive values in error messages
@@ -85,7 +99,9 @@ export function validateAllEnv() {
         .replace(/SUPABASE_SERVICE_ROLE_KEY: [^,}]+/g, `SUPABASE_SERVICE_ROLE_KEY: ${mask(process.env.SUPABASE_SERVICE_ROLE_KEY || '')}`)
         .replace(/R2_ACCESS_KEY_ID: [^,}]+/g, `R2_ACCESS_KEY_ID: ${mask(process.env.R2_ACCESS_KEY_ID || '')}`)
         .replace(/R2_SECRET_ACCESS_KEY: [^,}]+/g, `R2_SECRET_ACCESS_KEY: ${mask(process.env.R2_SECRET_ACCESS_KEY || '')}`)
-        .replace(/MUREKA_API_KEY: [^,}]+/g, `MUREKA_API_KEY: ${mask(process.env.MUREKA_API_KEY || '')}`);
+        .replace(/MUREKA_API_KEY: [^,}]+/g, `MUREKA_API_KEY: ${mask(process.env.MUREKA_API_KEY || '')}`)
+        .replace(/MUSICGPT_API_KEY: [^,}]+/g, `MUSICGPT_API_KEY: ${mask(process.env.MUSICGPT_API_KEY || '')}`)
+        .replace(/MUSICGPT_WEBHOOK_SECRET: [^,}]+/g, `MUSICGPT_WEBHOOK_SECRET: ${mask(process.env.MUSICGPT_WEBHOOK_SECRET || '')}`);
       
       throw new Error(`Environment validation failed: ${maskedError}`);
     }

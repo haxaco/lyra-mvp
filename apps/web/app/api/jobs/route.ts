@@ -1,9 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
+import type { ProviderId } from "@lyra/core";
 import { getOrgClientAndId } from "@/lib/org";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { r2Put, r2SignGet } from "@/lib/r2";
-
-const API_BASE = "https://api.mureka.ai";
+import { getProvider } from "@/lib/providers";
+import { runTrackJob } from "@/lib/jobs/runner";
+import { createPresignedGetUrl } from "@/lib/r2";
+import { env } from "@/lib/env";
+import { getJobById } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -27,202 +30,271 @@ export async function GET() {
   }
 }
 
-// Minimal copy of the generate/poll logic; for production you can refactor into a shared module.
-type MurekaChoice = { id?: string; index?: number; url?: string; flac_url?: string; duration?: number; };
-type MurekaQueryResult = { id: string; status: string; model?: string; choices?: MurekaChoice[]; trace_id?: string; [k: string]: any; };
-async function sleep(ms:number){ return new Promise(r=>setTimeout(r,ms)); }
-async function pollTask(taskId:string, token:string, maxSec=240) {
-  const start = Date.now();
-  while (Date.now()-start < maxSec*1000) {
-    const r = await fetch(`${API_BASE}/v1/song/query/${taskId}`, { headers:{ Authorization:`Bearer ${token}` }, cache:"no-store" });
-    const data = await r.json() as MurekaQueryResult;
-    const s = (data.status || "").toLowerCase();
-    if (["finished","succeeded","success","completed"].includes(s)) return data;
-    if (["failed","canceled","cancelled"].includes(s) || (data as any).error) throw new Error((data as any)?.error?.message ?? s);
-    await sleep(3000);
+const PROVIDER_METADATA: Record<ProviderId, {
+  displayName: string;
+  compliance: {
+    allowed_for_b2b: boolean;
+    allowed_public_performance: boolean;
+    requires_attribution: boolean;
+    watermarking_available: boolean;
+    notes?: string;
+  };
+  defaultModel: {
+    name: string;
+    version: string;
+  };
+}> = {
+  mureka: {
+    displayName: "Mureka AI",
+    compliance: {
+      allowed_for_b2b: true,
+      allowed_public_performance: true,
+      requires_attribution: false,
+      watermarking_available: true,
+      notes: "AI music generation provider",
+    },
+    defaultModel: {
+      name: "auto",
+      version: "latest",
+    },
+  },
+  musicgpt: {
+    displayName: "MusicGPT",
+    compliance: {
+      allowed_for_b2b: false,
+      allowed_public_performance: false,
+      requires_attribution: false,
+      watermarking_available: false,
+      notes: "Requires manual compliance approval before use in production",
+    },
+    defaultModel: {
+      name: "musicgpt-standard",
+      version: "v1",
+    },
+  },
+  suno: {
+    displayName: "Suno",
+    compliance: {
+      allowed_for_b2b: false,
+      allowed_public_performance: false,
+      requires_attribution: false,
+      watermarking_available: false,
+      notes: "Not yet integrated",
+    },
+    defaultModel: {
+      name: "default",
+      version: "v1",
+    },
+  },
+  musicgen: {
+    displayName: "MusicGen",
+    compliance: {
+      allowed_for_b2b: false,
+      allowed_public_performance: false,
+      requires_attribution: false,
+      watermarking_available: false,
+      notes: "Not yet integrated",
+    },
+    defaultModel: {
+      name: "default",
+      version: "v1",
+    },
+  },
+};
+
+async function ensureProviderCompliance(admin: ReturnType<typeof supabaseAdmin>, providerId: ProviderId) {
+  const metadata = PROVIDER_METADATA[providerId];
+  if (!metadata) return;
+
+  await admin
+    .from("provider_compliance")
+    .upsert([{
+      id: providerId,
+      display_name: metadata.displayName,
+      allowed_for_b2b: metadata.compliance.allowed_for_b2b,
+      allowed_public_performance: metadata.compliance.allowed_public_performance,
+      requires_attribution: metadata.compliance.requires_attribution,
+      watermarking_available: metadata.compliance.watermarking_available,
+      notes: metadata.compliance.notes ?? null,
+    }], { onConflict: "id" });
+}
+
+async function ensureProviderModel(admin: ReturnType<typeof supabaseAdmin>, providerId: ProviderId, modelName?: string) {
+  const metadata = PROVIDER_METADATA[providerId];
+  const targetName = modelName || metadata?.defaultModel.name || "default";
+  const targetVersion = metadata?.defaultModel.version || "v1";
+
+  const { data: existingModel, error: findError } = await admin
+    .from("models")
+    .select("id")
+    .eq("name", targetName)
+    .eq("provider_id", providerId)
+    .single();
+
+  if (!findError && existingModel?.id) {
+    return { id: existingModel.id as string, name: targetName };
   }
-  throw new Error("Timeout");
+
+  if (findError && findError.code !== "PGRST116") {
+    throw findError;
+  }
+
+  const { data: insertedModel, error: insertError } = await admin
+    .from("models")
+    .insert([{
+      provider_id: providerId,
+      name: targetName,
+      version: targetVersion,
+      enabled: true,
+      default_params: {},
+    }])
+    .select("id")
+    .single();
+
+  if (insertError || !insertedModel?.id) {
+    throw insertError || new Error("Failed to create provider model");
+  }
+
+  return { id: insertedModel.id as string, name: targetName };
 }
 
 export async function POST(req: NextRequest) {
-  const t0 = Date.now();
   let jobId: string | null = null;
+  const admin = supabaseAdmin();
   try {
     const { supa, orgId, userId } = await getOrgClientAndId();
-    if (!orgId) return NextResponse.json({ ok:false, error:"No org in session" }, { status: 401 });
+    if (!orgId) {
+      return NextResponse.json({ ok: false, error: "No org in session" }, { status: 401 });
+    }
 
-    const token = process.env.MUREKA_API_KEY;
-    if (!token) return NextResponse.json({ ok:false, error:"Missing MUREKA_API_KEY" }, { status: 500 });
+    const body = await req.json().catch(() => ({}));
+    const providerId = (body?.provider ?? "mureka") as ProviderId;
 
-    const body = await req.json().catch(()=> ({}));
-    const model = body?.model ?? "auto";
-    const n = Math.min(Math.max(1, Number(body?.n ?? 2)), 3);
-    const lyrics = body?.lyrics ?? "[Instrumental only]";
-    const reqPayload:any = { model, n, lyrics };
-    // Attach optional controls respecting exclusivity
-    if (body?.prompt) reqPayload.prompt = body.prompt;
-    if (body?.reference_id) reqPayload.reference_id = body.reference_id;
-    if (body?.vocal_id) reqPayload.vocal_id = body.vocal_id;
-    if (body?.melody_id) reqPayload.melody_id = body.melody_id;
-    if (body?.stream && model !== "mureka-o1") reqPayload.stream = true;
+    let provider;
+    try {
+      provider = getProvider(providerId);
+    } catch {
+      return NextResponse.json({ ok: false, error: `Unknown provider: ${providerId}` }, { status: 400 });
+    }
 
-    // 1) Create generation_job row (queued)
-    const admin = supabaseAdmin();
-    
-    // Ensure mureka provider exists and get/create model_id
-    let modelId: string;
-    {
-      // First ensure mureka provider exists
-      await admin
+    if (providerId === "musicgpt" && !env.ENABLE_PROVIDER_MUSICGPT) {
+      return NextResponse.json({ ok: false, error: "MusicGPT provider disabled via environment flag" }, { status: 403 });
+    }
+
+    const providerEnabled = await provider.enabled();
+    if (!providerEnabled) {
+      return NextResponse.json({ ok: false, error: `Provider ${providerId} is not enabled` }, { status: 503 });
+    }
+
+    await ensureProviderCompliance(admin, providerId);
+
+    const allowUnverified = (process.env.ALLOW_UNVERIFIED_PROVIDER || "").toLowerCase() === "true";
+    if (providerId === "musicgpt" && !allowUnverified) {
+      const { data: compliance, error: complianceError } = await admin
         .from("provider_compliance")
-        .upsert([{
-          id: "mureka",
-          display_name: "Mureka AI",
-          allowed_for_b2b: true,
-          allowed_public_performance: true,
-          requires_attribution: false,
-          watermarking_available: true,
-          notes: "AI music generation provider"
-        }], { onConflict: "id" });
-      
-      // Then try to find existing model
-      const { data: existingModel, error: findError } = await admin
-        .from("models")
-        .select("id")
-        .eq("name", model)
-        .eq("provider_id", "mureka")
+        .select("allowed_for_b2b")
+        .eq("id", providerId)
         .single();
-      
-      if (findError && findError.code !== 'PGRST116') {
-        throw findError;
-      }
-      
-      if (existingModel) {
-        modelId = existingModel.id;
-      } else {
-        // Create new model if it doesn't exist
-        const { data: newModel, error: createError } = await admin
-          .from("models")
-          .insert([{
-            provider_id: "mureka",
-            name: model,
-            version: model === "auto" ? "latest" : model.split('-')[1] || "1.0",
-            enabled: true,
-            default_params: {}
-          }])
-          .select("id")
-          .single();
-        
-        if (createError) throw createError;
-        modelId = newModel.id;
+      if (complianceError || !compliance?.allowed_for_b2b) {
+        return NextResponse.json(
+          { ok: false, error: "MusicGPT provider is not approved for B2B use" },
+          { status: 403 }
+        );
       }
     }
-    
-    {
-      const { data, error } = await admin
-        .from("generation_jobs")
-        .insert([{
-          organization_id: orgId,
-          user_id: userId,
-          model_id: modelId,
-          prompt: body?.prompt ?? null,
-          params: reqPayload,
-          status: "queued",
-          started_at: new Date().toISOString(),
-        }])
-        .select("id")
-        .single();
-      if (error) throw error;
-      jobId = data.id;
-    }
 
-    // 2) Call Mureka generate
-    const genRes = await fetch(`${API_BASE}/v1/song/generate`, {
-      method: "POST",
-      headers: { Authorization:`Bearer ${token}`, "Content-Type":"application/json" },
-      body: JSON.stringify(reqPayload),
-    });
-    if (!genRes.ok) {
-      const txt = await genRes.text();
-      await admin.from("generation_jobs").update({ status:"failed", error: txt, finished_at: new Date().toISOString() }).eq("id", jobId!);
-      return NextResponse.json({ ok:false, error:`Generate failed: ${txt}`, jobId }, { status: 502 });
-    }
-    const gen = await genRes.json();
-    const taskId = gen?.id;
-    if (!taskId) throw new Error("No task id from Mureka");
+    const itemCount = Math.min(Math.max(1, Number(body?.n ?? 2)), 3);
+    const requestedModel = body?.model as string | undefined;
+    const { id: modelId, name: modelName } = await ensureProviderModel(admin, providerId, requestedModel);
 
-    // 3) Poll completion
-    const result = await pollTask(taskId, token);
-    const choices = Array.isArray(result.choices) ? result.choices : [];
-    const toStore = choices.slice(0, n);
+    const params = {
+      ...body,
+      provider: providerId,
+      n: itemCount,
+      model: modelName,
+    };
 
-    // 4) Get user info for default artist
-    const { data: userData } = await supa.auth.getUser();
-    const userEmail = userData?.user?.email || 'Unknown User';
-    const defaultArtist = body.artist || userEmail.split('@')[0];
-
-    // 5) Upload to R2 + insert tracks
-    const uploads = await Promise.all(toStore.map(async (c, i) => {
-      const safeIndex = typeof c.index === "number" ? c.index : i;
-      async function fetchUp(u:string|undefined, ext:"mp3"|"flac") {
-        if (!u) return null;
-        const r = await fetch(u); if (!r.ok) throw new Error(`Fetch ${ext} failed`);
-        const buf = Buffer.from(await r.arrayBuffer());
-        const type = r.headers.get("content-type") || (ext==="flac"?"audio/flac":"audio/mpeg");
-        const key = `jobs/${jobId}/mureka_${taskId}_${safeIndex}.${ext}`;
-        await r2Put(key, buf, type);
-        const url = await r2SignGet(key, 3600);
-        return { key, url };
-      }
-      const [mp3, flac] = await Promise.all([ fetchUp(c.url, "mp3"), fetchUp(c.flac_url, "flac") ]);
-      const durationSec = c.duration ? Math.round(c.duration/1000) : null;
-
-      const meta = {
-        provider: "mureka",
-        job_id: jobId,
-        task_id: taskId,
-        choice_id: c.id ?? null,
-        choice_index: safeIndex,
-        mureka_model: result.model ?? model,
-        request: reqPayload,
-        source_urls: { mp3: c.url ?? null, flac: c.flac_url ?? null },
-        trace_id: (result as any)?.trace_id ?? null,
-      };
-
-      const ins = await admin
-        .from("tracks")
-        .insert([{ 
-          organization_id: orgId, 
-          r2_key: mp3?.key ?? null, 
-          flac_r2_key: flac?.key ?? null, 
-          duration_seconds: durationSec, 
-          watermark: false, 
-          meta,
-          artist: defaultArtist,
-          mood: 'Upbeat', // Default mood for Mureka tracks
-          provider_id: 'mureka'
-        }])
-        .select("id")
-        .single();
-      if (ins.error) throw ins.error;
-
-      return { dbId: ins.data.id, mp3, flac, durationSec };
-    }));
-
-    // 6) Mark job succeeded
-    await admin
+    const { data, error: insertError } = await admin
       .from("generation_jobs")
-      .update({ status:"succeeded", finished_at: new Date().toISOString() })
-      .eq("id", jobId!);
+      .insert([{
+        organization_id: orgId,
+        user_id: userId,
+        kind: 'track.generate',
+        provider: providerId,
+        model: modelName,
+        model_id: modelId,
+        prompt: body?.prompt ?? null,
+        params,
+        status: "queued",
+        item_count: itemCount,
+        completed_count: 0,
+      }])
+      .select("id")
+      .single();
 
-    const elapsedMs = Date.now()-t0;
-    return NextResponse.json({ ok:true, jobId, items: uploads, elapsedMs });
-  } catch (e:any) {
-    if (jobId) {
-      const admin = supabaseAdmin();
-      await admin.from("generation_jobs").update({ status:"failed", error: e.message || String(e), finished_at: new Date().toISOString() }).eq("id", jobId);
+    if (insertError || !data?.id) {
+      throw insertError || new Error("Failed to create job");
     }
-    return NextResponse.json({ ok:false, error: e.message || String(e), jobId }, { status: 500 });
+
+    jobId = data.id as string;
+
+    await runTrackJob(jobId);
+
+    const job = await getJobById(jobId);
+
+    const { data: tracks, error: trackError } = await admin
+      .from("tracks")
+      .select("id, title, duration_seconds, r2_key, flac_r2_key, meta")
+      .eq("job_id", jobId);
+
+    if (trackError) {
+      throw trackError;
+    }
+
+    const signedTracks = tracks
+      ? await Promise.all(
+          tracks.map(async (track) => ({
+            id: track.id,
+            title: track.title,
+            duration: track.duration_seconds,
+            mp3Url: track.r2_key ? await createPresignedGetUrl(track.r2_key, 3600) : null,
+            losslessUrl: track.flac_r2_key ? await createPresignedGetUrl(track.flac_r2_key, 3600) : null,
+            meta: track.meta,
+          }))
+        )
+      : [];
+
+    const responseBody: Record<string, any> = {
+      ok: true,
+      jobId,
+      job,
+      tracks: signedTracks,
+    };
+
+    // Include current auth user email for convenience (used by UI default artist)
+    if (supa) {
+      const { data: userData } = await supa.auth.getUser();
+      responseBody.user = userData?.user ? { id: userData.user.id, email: userData.user.email } : null;
+    }
+
+    return NextResponse.json(responseBody);
+  } catch (e: any) {
+    console.error("[jobs/POST] Error:", e);
+    if (jobId) {
+      try {
+        await admin
+          .from("generation_jobs")
+          .update({
+            status: "failed",
+            error: e?.message || String(e),
+            finished_at: new Date().toISOString(),
+          })
+          .eq("id", jobId);
+      } catch (updateError) {
+        console.error("[jobs/POST] Failed to update job after error:", updateError);
+      }
+    }
+    return NextResponse.json({ ok: false, error: e?.message || String(e), jobId }, { status: 500 });
   }
 }
 

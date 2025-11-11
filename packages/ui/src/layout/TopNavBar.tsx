@@ -83,15 +83,15 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
           {!mounted ? (
             <div className="w-9 h-9 flex items-center justify-center" aria-label="Toggle sidebar" />
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onMenuToggle}
-              className="text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
-              aria-label="Toggle sidebar"
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onMenuToggle}
+            className="text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+            aria-label="Toggle sidebar"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
           )}
 
           {/* Lyra Logo - Hidden on mobile when sidebar takes space */}
@@ -120,7 +120,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
               `}
             >
               {mounted && (
-                <Search className="absolute left-3 lg:left-4 w-4 lg:w-5 h-4 lg:h-5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-3 lg:left-4 w-4 lg:w-5 h-4 lg:h-5 text-muted-foreground pointer-events-none" />
               )}
               <input
                 type="text"
@@ -152,14 +152,14 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         {!mounted ? (
           <div className="md:hidden w-9 h-9" />
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setMobileSearchOpen(true)}
-            className="md:hidden text-muted-foreground hover:text-foreground h-9 w-9 p-0"
-          >
-            <Search className="w-4 h-4" />
-          </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMobileSearchOpen(true)}
+          className="md:hidden text-muted-foreground hover:text-foreground h-9 w-9 p-0"
+        >
+          <Search className="w-4 h-4" />
+        </Button>
         )}
 
         {/* Mobile Search Modal removed in this integration */}
@@ -170,52 +170,52 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
           {!mounted ? (
             <div className="hidden md:flex items-center gap-2 h-9 lg:h-10 w-24" />
           ) : (
-            <Button
-              onClick={onGenerateClick}
-              className="hidden md:flex items-center gap-2 bg-gradient-coral text-white hover:opacity-90 transition-all shadow-md hover:shadow-lg h-9 lg:h-10"
-              size="sm"
-            >
-              <Wand2 className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
-              <span className="hidden lg:inline text-sm">Generate New</span>
-              <span className="lg:hidden text-sm">Generate</span>
-            </Button>
+          <Button
+            onClick={onGenerateClick}
+            className="hidden md:flex items-center gap-2 bg-gradient-coral text-white hover:opacity-90 transition-all shadow-md hover:shadow-lg h-9 lg:h-10"
+            size="sm"
+          >
+            <Wand2 className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
+            <span className="hidden lg:inline text-sm">Generate New</span>
+            <span className="lg:hidden text-sm">Generate</span>
+          </Button>
           )}
 
           {/* Notifications */}
           {!mounted ? (
             <div className="w-9 h-9 relative" />
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="relative text-muted-foreground hover:text-foreground hover:bg-secondary/50 h-9 w-9 p-0"
-              onClick={onNotificationsClick}
-            >
-              <Bell className="w-4 lg:w-5 h-4 lg:h-5" />
-              {notificationCount > 0 && (
-                <Badge className="absolute -top-0.5 -right-0.5 h-4 w-4 lg:h-5 lg:w-5 flex items-center justify-center p-0 bg-primary text-white border-2 border-background text-[10px] lg:text-xs">
-                  {notificationCount}
-                </Badge>
-              )}
-            </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="relative text-muted-foreground hover:text-foreground hover:bg-secondary/50 h-9 w-9 p-0"
+            onClick={onNotificationsClick}
+          >
+            <Bell className="w-4 lg:w-5 h-4 lg:h-5" />
+            {notificationCount > 0 && (
+              <Badge className="absolute -top-0.5 -right-0.5 h-4 w-4 lg:h-5 lg:w-5 flex items-center justify-center p-0 bg-primary text-white border-2 border-background text-[10px] lg:text-xs">
+                {notificationCount}
+              </Badge>
+            )}
+          </Button>
           )}
 
           {/* Theme Toggle */}
           {!mounted ? (
             <div className="hidden md:flex w-9 h-9" />
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleTheme}
-              className="hidden md:flex text-muted-foreground hover:text-foreground hover:bg-secondary/50 h-9 w-9 p-0"
-            >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleTheme}
+            className="hidden md:flex text-muted-foreground hover:text-foreground hover:bg-secondary/50 h-9 w-9 p-0"
+          >
               {displayTheme === 'light' ? (
-                <Moon className="w-4 lg:w-5 h-4 lg:h-5" />
-              ) : (
-                <Sun className="w-4 lg:w-5 h-4 lg:h-5" />
-              )}
-            </Button>
+              <Moon className="w-4 lg:w-5 h-4 lg:h-5" />
+            ) : (
+              <Sun className="w-4 lg:w-5 h-4 lg:h-5" />
+            )}
+          </Button>
           )}
 
           {/* User Menu */}

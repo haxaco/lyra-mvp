@@ -9,6 +9,8 @@ export interface JobSnapshot {
   user_id: string;
   parent_job_id?: string;
   provider_job_id?: string;
+  provider_task_id?: string;
+  expected_variants?: number | null;
   status: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled';
   progress_pct: number;
   item_count: number;

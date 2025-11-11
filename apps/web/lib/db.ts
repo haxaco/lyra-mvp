@@ -142,6 +142,7 @@ export async function insertTrack(track: TrackInsert): Promise<string> {
       meta: track.meta,
       provider_id: track.provider_id,
       blueprint: track.blueprint,
+      source_conversion_id: track.source_conversion_id ?? null,
     })
     .select('id')
     .single();

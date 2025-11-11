@@ -22,6 +22,9 @@ export interface JobSnapshot {
   user_id: string;
   parent_job_id?: string;
   provider_job_id?: string;
+  provider?: string | null;
+  provider_task_id?: string | null;
+  expected_variants?: number | null;
   status: JobStatus;
   progress_pct: number;
   item_count: number;
@@ -48,6 +51,7 @@ export interface TrackInsert {
   meta?: any;
   provider_id?: string;
   blueprint?: any; // Complete TrackBlueprint JSON
+  source_conversion_id?: string | null;
 }
 
 export interface MurekaCreateParams {

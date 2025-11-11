@@ -43,6 +43,8 @@ export type Job = {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+  provider_task_id?: string | null;
+  expected_variants?: number | null;
 };
 
 export type WhoAmI = ApiOk<{
@@ -84,6 +86,7 @@ export type UpdatePlaylistBody = {
 };
 
 export type CreateJobBody = {
+  provider?: 'mureka' | 'musicgpt';
   model?: string;
   n?: number;
   lyrics?: string;
@@ -92,5 +95,10 @@ export type CreateJobBody = {
   vocal_id?: string;
   melody_id?: string;
   stream?: boolean;
+  music_style?: string;
+  voice_id?: string;
+  make_instrumental?: boolean;
+  vocal_only?: boolean;
+  musicgpt_overrides?: Record<string, any>;
 };
 

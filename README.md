@@ -27,7 +27,14 @@ pnpm -w dev
 
 ### Deploy
 - Connect this repo to Vercel and set `apps/web` as the project root.
-- Add environment variables (see `.env.example`).
+- Add environment variables (see `.env.example`), including new MusicGPT provider keys:
+  - `MUSICGPT_API_URL`
+  - `MUSICGPT_API_KEY`
+  - `ENABLE_PROVIDER_MUSICGPT`
+  - `MUSICGPT_WEBHOOK_SECRET`
+  - `PUBLIC_R2_BASE_URL`
+- Optional safety override during development: `ALLOW_UNVERIFIED_PROVIDER=true` (bypasses compliance gating—do **not** enable in production).
+- In Vercel, add these under **Project Settings → Environment Variables** for the appropriate environments. Ensure the webhook URL you configure in MusicGPT points to `https://<your-app-domain>/api/providers/musicgpt/webhook`.
 
 ---
 

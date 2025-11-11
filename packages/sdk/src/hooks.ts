@@ -174,7 +174,7 @@ export function useCreateJob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateJobBody) =>
-      apiFetch<ApiOk<{ jobId: string; items: any[]; elapsedMs: number }>>("/api/jobs", {
+      apiFetch<ApiOk<{ jobId: string; job: any; tracks: any[] }>>("/api/jobs", {
         method: "POST",
         body: JSON.stringify(body),
       }),

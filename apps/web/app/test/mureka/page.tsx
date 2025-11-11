@@ -315,7 +315,7 @@ export default function MurekaTestPage() {
     <div className="min-h-[90vh] flex flex-col items-center gap-6 p-6">
       {/* Header with user info */}
       <div className="w-full max-w-3xl flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Mureka → R2 → DB Test</h1>
+        <h1 className="text-2xl font-semibold">Music Generation Provider Test</h1>
         <div className="flex items-center gap-3">
           {user && (
             <>

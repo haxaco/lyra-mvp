@@ -39,11 +39,13 @@ export default function SDKTestPage() {
   const [trackTitle, setTrackTitle] = useState("");
   const [playlistName, setPlaylistName] = useState("");
   const [jobPrompt, setJobPrompt] = useState("Energetic electronic music");
+  const [jobProvider, setJobProvider] = useState<'mureka' | 'musicgpt'>('mureka');
   const [isRawDataOpen, setIsRawDataOpen] = useState(false);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [playlistMap, setPlaylistMap] = useState<Record<string, string>>({});
   const [isGeneratingCovers, setIsGeneratingCovers] = useState(false);
   const [regeneratingPlaylistId, setRegeneratingPlaylistId] = useState<string | null>(null);
+  const [cancelingJobId, setCancelingJobId] = useState<string | null>(null);
 
   // Transform SDK track data to SongLibrary format
   const transformTrackForSongLibrary = (sdkTrack: any, playlistMap: Record<string, string> = {}) => {
@@ -110,6 +112,7 @@ export default function SDKTestPage() {
     // Map provider names to SongLibrary format
     const providerMap: Record<string, string> = {
       'mureka': 'Mureka',
+      'musicgpt': 'MusicGPT',
       'suno': 'Suno', 
       'musicgen': 'MusicGen',
       'openai': 'OpenAI',
@@ -408,21 +411,55 @@ export default function SDKTestPage() {
       alert("Please enter a prompt");
       return;
     }
-    if (!confirm(`This will generate 2 tracks with Mureka. Continue?`)) return;
+    const providerLabel = jobProvider === 'musicgpt' ? 'MusicGPT (beta)' : 'Mureka';
+    const confirmationMessage = jobProvider === 'musicgpt'
+      ? `This will start a ${providerLabel} job that delivers tracks via webhook once they're ready. Continue?`
+      : `This will generate 2 tracks with ${providerLabel}. Continue?`;
+    if (!confirm(confirmationMessage)) return;
     
     createJob.mutate({
+      provider: jobProvider,
       prompt: jobPrompt,
       n: 2,
       lyrics: "[Instrumental only]",
-      model: "auto",
+      model: jobProvider === 'mureka' ? "auto" : undefined,
+      music_style: jobProvider === 'musicgpt' ? 'general' : undefined,
+      make_instrumental: jobProvider === 'musicgpt' ? true : undefined,
     }, {
       onSuccess: (data) => {
-        alert(`Job ${data.jobId} created! Generated ${data.items.length} tracks in ${(data.elapsedMs / 1000).toFixed(1)}s`);
+        if (jobProvider === 'musicgpt') {
+          alert(`Job ${data.jobId} started with MusicGPT. Tracks will arrive via webhook updates.`);
+        } else {
+          alert(`Job ${data.jobId} created! Generated ${data.tracks.length} tracks.`);
+        }
       },
       onError: (error) => {
         alert(`Error: ${error.message}`);
       }
     });
+  };
+
+  const handleCancelJob = async (jobId: string) => {
+    if (!confirm("Mark this job as failed? This will stop any further processing.")) {
+      return;
+    }
+
+    setCancelingJobId(jobId);
+    try {
+      const response = await fetch(`/api/jobs/${jobId}/cancel`, {
+        method: "POST",
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "Failed to cancel job");
+      }
+      jobs.refetch();
+      alert(`Job ${jobId} marked as failed.`);
+    } catch (error: any) {
+      alert(`Failed to cancel job: ${error?.message || String(error)}`);
+    } finally {
+      setCancelingJobId(null);
+    }
   };
 
   return (
@@ -853,13 +890,36 @@ export default function SDKTestPage() {
                   className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   disabled={createJob.isPending}
                 />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground font-medium">
+                    Provider
+                  </label>
+                  <select
+                    className="px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                    value={jobProvider}
+                    onChange={(e) => setJobProvider(e.target.value as 'mureka' | 'musicgpt')}
+                    disabled={createJob.isPending}
+                  >
+                    <option value="mureka">Mureka (default)</option>
+                    <option value="musicgpt">MusicGPT (beta)</option>
+                  </select>
+                  {jobProvider === 'musicgpt' && (
+                    <p className="text-xs text-amber-600">
+                      MusicGPT delivers tracks asynchronously via webhook once ready.
+                    </p>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Button 
                     onClick={handleCreateJob}
                     disabled={createJob.isPending}
                     className="flex-1"
                   >
-                    {createJob.isPending ? "Generating... (may take 30-60s)" : "Generate Music (2 tracks)"}
+                    {createJob.isPending 
+                      ? "Generating... (may take 30-60s)" 
+                      : jobProvider === 'musicgpt'
+                        ? "Start MusicGPT Job (webhook)"
+                        : "Generate Music (2 tracks)"}
                   </Button>
                   <Button variant="outline" onClick={() => jobs.refetch()}>
                     Refresh
@@ -875,18 +935,36 @@ export default function SDKTestPage() {
                   <p className="font-semibold">{jobs.data.jobs.length} recent jobs:</p>
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {jobs.data.jobs.map((job) => (
-                      <div key={job.id} className="p-2 border border-border rounded">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium truncate flex-1">{job.prompt || "No prompt"}</p>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            job.status === "succeeded" ? "bg-green-500/20 text-green-600" :
-                            job.status === "failed" ? "bg-red-500/20 text-red-600" :
-                            "bg-yellow-500/20 text-yellow-600"
-                          }`}>
+                      <div key={job.id} className="p-2 border border-border rounded space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{job.prompt || "No prompt"}</p>
+                          </div>
+                          <span
+                            className={`text-xs px-2 py-1 rounded ${
+                              job.status === "succeeded"
+                                ? "bg-green-500/20 text-green-600"
+                                : job.status === "failed"
+                                ? "bg-red-500/20 text-red-600"
+                                : job.status === "canceled"
+                                ? "bg-gray-500/20 text-gray-600"
+                                : "bg-yellow-500/20 text-yellow-600"
+                            }`}
+                          >
                             {job.status}
                           </span>
+                          {(job.status === "running" || job.status === "queued") && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCancelJob(job.id)}
+                              disabled={cancelingJobId === job.id}
+                            >
+                              {cancelingJobId === job.id ? "Updating..." : "Mark Failed"}
+                            </Button>
+                          )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground">
                           {job.provider} • {job.model} • {new Date(job.created_at).toLocaleString()}
                         </p>
                         {job.error && (

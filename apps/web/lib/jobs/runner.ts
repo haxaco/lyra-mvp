@@ -3,22 +3,24 @@
  * Handles Mureka → R2 → Supabase pipeline with proper error handling and concurrency control
  */
 
-import { 
-  getJobById, 
-  updateJob, 
-  insertJobEvent, 
-  getChildJobs, 
-  countRunningJobsForOrg, 
-  insertTrack,
-  getSupabaseAdmin
+import {
+  getJobById,
+  updateJob,
+  insertJobEvent,
+  getChildJobs,
+  countRunningJobsForOrg,
+  getSupabaseAdmin,
 } from '../db';
-import { createMurekaJob, pollMurekaJob } from '../mureka';
-import { putObject, createPresignedGetUrl } from '../r2';
-import type { JobSnapshot, JobEventType } from '../types';
+import type { JobSnapshot, JobEventType, JobStatus } from '../types';
+import type { ProviderNormalizedResult } from '@lyra/core';
 import { learnFromComposedPlaylist } from '../ai/brandLearning';
 import { transformBlueprintToMurekaParams } from '../ai/blueprintToMureka';
 import { ComposeConfig } from '@lyra/sdk';
 import { generatePlaylistStep } from '../../jobs/steps/generatePlaylist';
+import { getProvider, fetchMusicGptConversions } from '../providers';
+import type { ProviderId } from '@lyra/core';
+import { upsertTrackFromProviderResult } from '../providers/upsertTrackFromProviderResult';
+import { putObject } from '../r2';
 
 const MAX_CONCURRENT_JOBS_PER_ORG = 5; // Increased to allow more concurrent jobs
 const RETRY_DELAYS = [1000, 2000, 4000]; // 1s, 2s, 4s
@@ -326,212 +328,188 @@ export async function runTrackJob(jobId: string): Promise<void> {
     });
     await emitEvent(jobId, job.organization_id, 'started');
     
-    // Determine if this is a playlist track or standalone track
-    const isPlaylistTrack = job.params?.blueprint && job.params?.playlistId;
-    
-    let murekaParams;
-    if (isPlaylistTrack) {
-      // This is a playlist track - transform blueprint to Mureka params
-      const blueprint = job.params.blueprint;
-      const transformedParams = transformBlueprintToMurekaParams(blueprint);
-      murekaParams = {
-        ...transformedParams,
-        n: 1, // Always 1 for playlist tracks
-        reference_id: job.params?.reference_id,
-        vocal_id: job.params?.vocal_id,
-        melody_id: job.params?.melody_id,
-      };
-    } else {
-      // This is a standalone track - use original params
-      murekaParams = {
-        lyrics: job.params?.lyrics || '[Instrumental only]',
-        model: job.params?.model || 'auto',
-        n: job.params?.n || job.item_count || 1, // Use params.n first, then item_count as fallback
-        prompt: job.params?.prompt,
-        reference_id: job.params?.reference_id,
-        vocal_id: job.params?.vocal_id,
-        melody_id: job.params?.melody_id,
-        stream: job.params?.stream || false,
-      };
-    }
-    
-    console.log(`[Job ${jobId}] Creating Mureka job with params:`, murekaParams);
-    
-    // Add delay to respect Mureka API concurrency limits
-    await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay before API call
-    
-    const { providerJobId } = await createMurekaJob(murekaParams);
-    
-    // Update job with provider ID
-    await updateJob(jobId, { provider_job_id: providerJobId });
-    await emitEvent(jobId, job.organization_id, 'progress', { 
-      message: 'Mureka job created', 
-      provider_job_id: providerJobId 
+    const providerId: ProviderId = (job.provider as ProviderId) || 'mureka';
+    const isPlaylistTrack = Boolean(job.params?.blueprint && job.params?.playlistId);
+    const provider = getProvider(providerId);
+    console.log(`[Job ${jobId}] Provider resolved`, {
+      providerId,
+      isPlaylistTrack,
+      parentJobId: job.parent_job_id ?? null,
+      itemCount: job.item_count,
+      expectedVariants: job.expected_variants ?? null,
     });
-    
-    // Poll Mureka job until completion
-    console.log(`[Job ${jobId}] Polling Mureka job ${providerJobId}`);
-    const result = await pollMurekaJob(providerJobId);
-    
-    if (result.status === 'failed') {
-      throw new Error(`Mureka job failed: ${result.error}`);
-    }
-    
-    if (!result.choices || result.choices.length === 0) {
-      throw new Error('Mureka job succeeded but returned no choices');
-    }
-    
-    console.log(`[Job ${jobId}] Mureka job completed, processing ${result.choices.length} choices:`, result.choices);
-    console.log(`[Job ${jobId}] Full Mureka API response:`, JSON.stringify(result, null, 2));
-    
-    // Update progress
-    await updateJob(jobId, { progress_pct: 50 });
-    await emitEvent(jobId, job.organization_id, 'progress', { 
-      message: `Mureka job completed, processing ${result.choices.length} tracks` 
-    });
-    
-    // Generate a better title from prompt or use fallback
-    const generateTitle = (prompt?: string, trackIndex?: number): string => {
-      if (!prompt) return `Generated Track ${trackIndex ? trackIndex + 1 : ''}`;
-      
-      // If prompt is short enough, use it as title
-      if (prompt.length <= 100) return trackIndex ? `${prompt} (${trackIndex + 1})` : prompt;
-      
-      // If prompt is long, extract first sentence or first 80 chars
-      const firstSentence = prompt.split(/[.!?]/)[0];
-      if (firstSentence && firstSentence.length <= 100) {
-        const baseTitle = firstSentence.trim();
-        return trackIndex ? `${baseTitle} (${trackIndex + 1})` : baseTitle;
+    const playlistContext = isPlaylistTrack
+      ? {
+          id: job.params?.playlistId as string,
+          basePosition: typeof job.params?.trackIndex === 'number' ? job.params.trackIndex : undefined,
+          blueprint: job.params?.blueprint,
+        }
+      : undefined;
+
+    let providerParams: Record<string, any> = {};
+    let expectedVariants = job.item_count || 1;
+    let prompt = job.params?.prompt ?? job.prompt ?? '';
+    let lyrics = job.params?.lyrics ?? '[Instrumental only]';
+    let fallbackPrompt = prompt;
+
+    switch (providerId) {
+      case 'mureka': {
+        if (isPlaylistTrack && playlistContext?.blueprint) {
+          const transformed = transformBlueprintToMurekaParams(playlistContext.blueprint);
+          providerParams = {
+            ...transformed,
+            n: 1,
+            reference_id: job.params?.reference_id,
+            vocal_id: job.params?.vocal_id,
+            melody_id: job.params?.melody_id,
+          };
+          prompt = playlistContext.blueprint.prompt ?? prompt;
+          lyrics = transformed.lyrics ?? lyrics;
+          fallbackPrompt = playlistContext.blueprint.prompt ?? prompt;
+        } else {
+          providerParams = {
+            lyrics,
+            model: job.params?.model || 'auto',
+            n: job.params?.n || job.item_count || 1,
+            prompt,
+            reference_id: job.params?.reference_id,
+            vocal_id: job.params?.vocal_id,
+            melody_id: job.params?.melody_id,
+            stream: job.params?.stream || false,
+          };
+        }
+        expectedVariants = providerParams.n ?? expectedVariants;
+        break;
       }
-      
-      // Fallback to first 80 characters
-      const baseTitle = prompt.substring(0, 80).trim() + '...';
-      return trackIndex ? `${baseTitle} (${trackIndex + 1})` : baseTitle;
+      case 'musicgpt': {
+        expectedVariants = job.params?.n || expectedVariants || 2;
+        const blueprintPrompt = playlistContext?.blueprint?.prompt;
+        prompt = prompt || blueprintPrompt || 'Generate an original track';
+        fallbackPrompt = blueprintPrompt || prompt;
+        lyrics = job.params?.lyrics ?? playlistContext?.blueprint?.lyrics ?? null;
+        providerParams = {
+          jobId,
+          organizationId: job.organization_id,
+          playlistId: playlistContext?.id,
+          make_instrumental: job.params?.make_instrumental ?? (!lyrics || lyrics === '[Instrumental only]'),
+          vocal_only: job.params?.vocal_only ?? false,
+          music_style: job.params?.music_style,
+          voice_id: job.params?.voice_id,
+          overrides: job.params?.musicgpt_overrides,
+        };
+        break;
+      }
+      default:
+        throw new Error(`Provider ${providerId} is not supported for track jobs`);
+    }
+
+    const generateParams = {
+      prompt,
+      lyrics: lyrics ?? undefined,
+      metadata: {
+        providerParams,
+        [`${providerId}Params`]: providerParams,
+        expectedVariants,
+        jobId,
+        organizationId: job.organization_id,
+        playlistId: playlistContext?.id,
+        blueprint: playlistContext?.blueprint,
+      },
     };
 
-    // Process all choices (tracks)
-    const trackIds = [];
-    for (let i = 0; i < result.choices.length; i++) {
-      const choice = result.choices[i];
-      console.log(`[Job ${jobId}] Processing choice ${i + 1}/${result.choices.length}:`, choice);
-      
-      // Download and upload to R2
-      const jobTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      let mp3Key, flacKey;
-      
-      if (isPlaylistTrack) {
-        // For playlist tracks, use the playlist structure
-        const trackIndex = job.params.trackIndex || i;
-        const baseKey = `org_${job.organization_id}/playlist_${job.params.playlistId}/track_${trackIndex}`;
-        mp3Key = `${baseKey}.mp3`;
-        flacKey = `${baseKey}.flac`;
-      } else {
-        // For standalone tracks, use the original structure
-        mp3Key = `tracks/${jobId}/${jobTimestamp}-${i}.mp3`;
-        flacKey = `tracks/${jobId}/${jobTimestamp}-${i}.flac`;
-      }
-      
-      if (choice.url) {
-        await downloadAndUploadToR2(choice.url, mp3Key, 'audio/mpeg');
-      }
-      
-      if (choice.flac_url) {
-        await downloadAndUploadToR2(choice.flac_url, flacKey, 'audio/flac');
-      }
+    await emitEvent(jobId, job.organization_id, 'progress', {
+      message: `Preparing provider job (${providerId})`,
+    });
 
-      // Insert track into database
-      const trackData = {
-        organization_id: job.organization_id,
-        r2_key_mp3: mp3Key,
-        r2_key_flac: flacKey,
-        duration_seconds: choice.duration ? Math.round(choice.duration / 1000) : null, // Convert milliseconds to seconds
-        job_id: jobId,
-        title: isPlaylistTrack ? 
-          (job.params.blueprint?.title || generateTitle(job.params.blueprint?.prompt, i)) :
-          generateTitle(job.prompt, i), // Generate unique titles for each track
-        artist: 'User', // Default artist
-        meta: {
-          provider: 'mureka',
-          model: murekaParams.model,
-          prompt: isPlaylistTrack ? job.params.blueprint?.prompt : job.prompt,
-          lyrics: murekaParams.lyrics,
-          trace_id: result.trace_id,
-          mureka_choice_id: choice.id,
-          track_index: i,
-          mureka_full_response: result, // Store full response for debugging
-        },
-        provider_id: 'mureka',
-        blueprint: isPlaylistTrack ? job.params.blueprint : null, // Store complete blueprint for playlist tracks
-      };
-      
-      const trackId = await insertTrack(trackData);
-      trackIds.push(trackId);
-      console.log(`[Job ${jobId}] Track ${i + 1} inserted with ID: ${trackId}`);
-      
-      // If this is a playlist track, add it to the playlist
-      if (isPlaylistTrack) {
-        const supabase = getSupabaseAdmin();
-        const trackIndex = job.params.trackIndex || i;
-        const { error: itemErr } = await supabase.from("playlist_items").insert({
-          playlist_id: job.params.playlistId,
-          track_id: trackId,
-          position: trackIndex,
-        });
-        if (itemErr) {
-          console.error(`[Job ${jobId}] Failed to add track to playlist:`, itemErr);
-          throw new Error(`Failed to add track to playlist: ${itemErr.message}`);
-        }
-        console.log(`[Job ${jobId}] Track ${trackId} added to playlist ${job.params.playlistId} at position ${trackIndex}`);
-        
-        // Update playlist stats after adding track
-        const { error: statsErr } = await supabase.rpc('update_playlist_stats', {
-          playlist_uuid: job.params.playlistId
-        });
-        if (statsErr) {
-          console.warn(`[Job ${jobId}] Failed to update playlist stats:`, statsErr);
-          // Don't fail the job, just log the warning
-        } else {
-          console.log(`[Job ${jobId}] Updated playlist stats for ${job.params.playlistId}`);
-        }
-      }
-      
-      await emitEvent(jobId, job.organization_id, 'item_succeeded', { 
-        track_id: trackId,
-        r2_key_mp3: mp3Key,
-        r2_key_flac: flacKey,
-        duration: choice.duration,
-        track_index: i
-      });
-    }
-    
-    // Update job as completed
-    await updateJob(jobId, { 
-      status: 'succeeded', 
-      progress_pct: 100,
-      completed_count: result.choices.length,
-      finished_at: new Date().toISOString()
+    const prepareResult = await provider.prepare(generateParams);
+    console.log(`[Job ${jobId}] Provider prepare completed`, {
+      delivery: prepareResult.delivery,
+      providerTaskId: prepareResult.providerTaskId ?? null,
+      expectedVariants: prepareResult.expectedVariants ?? null,
+      providerConversionIds: prepareResult.providerConversionIds ?? null,
     });
-    
-    // Final playlist stats update if this was a playlist track
-    if (isPlaylistTrack && job.params.playlistId) {
-      const supabase = getSupabaseAdmin();
-      const { error: finalStatsErr } = await supabase.rpc('update_playlist_stats', {
-        playlist_uuid: job.params.playlistId
-      });
-      if (finalStatsErr) {
-        console.warn(`[Job ${jobId}] Failed to update final playlist stats:`, finalStatsErr);
-      } else {
-        console.log(`[Job ${jobId}] Final playlist stats updated for ${job.params.playlistId}`);
-      }
-    }
-    
-    await emitEvent(jobId, job.organization_id, 'succeeded', { 
-      track_ids: trackIds,
-      track_count: result.choices.length,
-      message: `Track generation completed successfully - ${result.choices.length} tracks created`
+    const providerTaskId = prepareResult.providerTaskId;
+    const variants = prepareResult.expectedVariants ?? expectedVariants ?? 1;
+    const providerConversionIds = prepareResult.providerConversionIds;
+
+    await updateJob(jobId, {
+      provider: providerId,
+      provider_job_id: providerTaskId,
+      provider_task_id: providerTaskId,
+      expected_variants: variants,
     });
-    
-    console.log(`[Job ${jobId}] Track generation completed successfully - ${result.choices.length} tracks created`);
+
+    await emitEvent(jobId, job.organization_id, 'progress', {
+      message: `Provider task created`,
+      provider: providerId,
+      provider_task_id: providerTaskId,
+      delivery: prepareResult.delivery,
+      provider_conversion_ids: providerConversionIds,
+    });
+
+    if (prepareResult.delivery === 'webhook') {
+      await emitEvent(jobId, job.organization_id, 'progress', {
+        message: 'Waiting for webhook callbacks',
+        expected_variants: variants,
+      });
+
+      startMusicGptFallbackPolling({
+        jobId,
+        providerTaskId,
+        providerId,
+        playlistContext,
+        fallbackPrompt,
+        providerConversionIds,
+      });
+      console.log(`[Job ${jobId}] MusicGPT webhook flow – fallback polling armed`, {
+        providerTaskId: providerTaskId ?? null,
+        pollIntervalMs: 60_000,
+        providerConversionIds,
+      });
+      return;
+    }
+
+    if (!providerTaskId) {
+      throw new Error(`Provider ${providerId} did not return a task id for polling`);
+    }
+
+    if (!provider.poll) {
+      throw new Error(`Provider ${providerId} does not implement polling`);
+    }
+
+    const pollResults = await provider.poll(providerTaskId);
+    if (!pollResults || pollResults.length === 0) {
+      if (providerId === 'musicgpt') {
+        console.log(
+          `[Job ${jobId}] Initial poll returned no results; switching to fallback polling`,
+          { providerTaskId, providerConversionIds }
+        );
+        startMusicGptFallbackPolling({
+          jobId,
+          providerTaskId,
+          providerId,
+          playlistContext,
+          fallbackPrompt,
+          providerConversionIds,
+        });
+        return;
+      }
+      throw new Error(`Provider ${providerId} returned no results`);
+    }
+
+    const normalizedResults = pollResults.map((result) => provider.normalize(result));
+    await processNormalizedProviderResults({
+      job,
+      providerId,
+      normalizedResults,
+      playlistContext,
+      fallbackPrompt,
+      providerTaskId,
+    });
+
+    console.log(
+      `[Job ${jobId}] Track generation completed successfully - ${normalizedResults.length} tracks created`
+    );
     
     // Update parent job if this is a child job
     if (job.parent_job_id) {
@@ -836,5 +814,271 @@ export async function startJob(jobId: string): Promise<void> {
     } catch (updateError) {
       console.error(`[Job ${jobId}] Failed to update job status after error:`, updateError);
     }
+  }
+}
+
+interface ProcessProviderResultsParams {
+  job: JobSnapshot;
+  providerId: ProviderId;
+  normalizedResults: ProviderNormalizedResult[];
+  playlistContext?:
+    | {
+        id: string;
+        basePosition?: number;
+        blueprint?: any;
+      }
+    | undefined;
+  fallbackPrompt?: string | null;
+  providerTaskId?: string;
+}
+
+async function processNormalizedProviderResults({
+  job,
+  providerId,
+  normalizedResults,
+  playlistContext,
+  fallbackPrompt,
+  providerTaskId,
+}: ProcessProviderResultsParams): Promise<{ processed: number; completedCount: number }> {
+  console.log(`[Job ${job.id}] processNormalizedProviderResults`, {
+    providerId,
+    normalizedResults: normalizedResults.length,
+    completedSoFar: job.completed_count ?? 0,
+  });
+  if (!normalizedResults.length) {
+    return { processed: 0, completedCount: job.completed_count ?? 0 };
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data: existingTracks } = await supabase
+    .from('tracks')
+    .select('source_conversion_id')
+    .eq('job_id', job.id);
+  const existingIds = new Set<string>(
+    (existingTracks || [])
+      .map((t: any) => t.source_conversion_id)
+      .filter((id: string | null | undefined): id is string => Boolean(id))
+  );
+
+  let processed = 0;
+  let trackIds: string[] = [];
+  let nextIndex = job.completed_count ?? 0;
+  const basePosition = playlistContext?.basePosition ?? nextIndex;
+
+  for (let i = 0; i < normalizedResults.length; i++) {
+    const normalized = normalizedResults[i];
+    const sourceConversionId = (normalized.metadata as any)?.sourceConversionId;
+    if (sourceConversionId && existingIds.has(sourceConversionId)) {
+      console.log(`[Job ${job.id}] Skipping duplicate conversion ${sourceConversionId}`);
+      continue;
+    }
+
+    const variantIndex = nextIndex;
+    const playlistPosition =
+      playlistContext && typeof basePosition === 'number' ? basePosition + processed : undefined;
+
+    const upserted = await upsertTrackFromProviderResult({
+      job,
+      normalized,
+      providerId,
+      variantIndex,
+      playlist: playlistContext
+        ? {
+            id: playlistContext.id,
+            position: playlistPosition,
+            blueprint: playlistContext.blueprint,
+          }
+        : undefined,
+      fallbackPrompt,
+      title: (normalized.metadata as any)?.title,
+      artist: job.params?.artist ?? 'Lyra AI',
+      externalIds: {
+        providerTaskId,
+        providerChoiceId: (normalized.metadata as any)?.providerChoiceId,
+        sourceConversionId,
+      },
+    });
+
+    trackIds.push(upserted.trackId);
+    processed++;
+    nextIndex++;
+
+    if (sourceConversionId) {
+      existingIds.add(sourceConversionId);
+    }
+
+    await emitEvent(job.id, job.organization_id, 'item_succeeded', {
+      track_id: upserted.trackId,
+      r2_key_mp3: upserted.r2KeyMp3,
+      r2_key_flac: upserted.r2KeyFlac,
+      duration: upserted.durationSeconds,
+      track_index: variantIndex,
+    });
+  }
+
+  if (processed === 0) {
+    console.log(`[Job ${job.id}] Provider results contained no new tracks`);
+    return { processed: 0, completedCount: job.completed_count ?? 0 };
+  }
+
+  const completedCount = (job.completed_count ?? 0) + processed;
+  const expectedVariants = job.expected_variants ?? job.item_count ?? completedCount;
+  const progressPct = Math.min(100, Math.round((completedCount * 100) / expectedVariants));
+
+  const updatePayload: Partial<JobSnapshot> & Record<string, any> = {
+    completed_count: completedCount,
+    progress_pct: progressPct,
+  };
+
+  let finalStatus: JobStatus | null = null;
+  if (completedCount >= expectedVariants) {
+    finalStatus = 'succeeded';
+    updatePayload.status = 'succeeded';
+    updatePayload.finished_at = new Date().toISOString();
+  }
+
+  await updateJob(job.id, updatePayload);
+  await emitEvent(job.id, job.organization_id, 'progress', {
+    message: `Processed ${processed} tracks from provider`,
+    completed_count: completedCount,
+    progress_pct: progressPct,
+  });
+
+  if (playlistContext?.id && processed > 0) {
+    const supabaseAdminClient = getSupabaseAdmin();
+    const { error: statsErr } = await supabaseAdminClient.rpc('update_playlist_stats', {
+      playlist_uuid: playlistContext.id,
+    });
+    if (statsErr) {
+      console.warn(`[Job ${job.id}] Failed to update playlist stats:`, statsErr);
+    } else {
+      console.log(`[Job ${job.id}] Playlist stats updated`, { playlistId: playlistContext.id });
+    }
+  }
+
+  if (finalStatus) {
+    console.log(`[Job ${job.id}] Final status update`, {
+      finalStatus,
+      completedCount,
+      expectedVariants,
+    });
+    await emitEvent(job.id, job.organization_id, finalStatus, {
+      track_ids: trackIds,
+      track_count: completedCount,
+      message: `Track generation completed successfully - ${completedCount} tracks created`,
+    });
+  }
+
+  return { processed, completedCount };
+}
+
+function startMusicGptFallbackPolling({
+  jobId,
+  providerTaskId,
+  providerId,
+  playlistContext,
+  fallbackPrompt,
+  providerConversionIds,
+}: {
+  jobId: string;
+  providerTaskId?: string;
+  providerId: ProviderId;
+  playlistContext?:
+    | {
+        id: string;
+        basePosition?: number;
+        blueprint?: any;
+      }
+    | undefined;
+  fallbackPrompt?: string | null;
+  providerConversionIds?: string[] | undefined;
+}): void {
+  if (!providerTaskId) return;
+
+  const pollIntervalMs = 20_000;
+  const maxAttempts = 40;
+  let attempts = 0;
+
+  const handler = async () => {
+    attempts++;
+    try {
+      console.log(`[Job ${jobId}] MusicGPT fallback poll attempt`, {
+        attempt: attempts,
+        maxAttempts,
+        providerTaskId,
+        providerConversionIds,
+      });
+
+      const job = await getJobById(jobId);
+      if (!job || job.status !== 'running') {
+        clearInterval(timer);
+        return;
+      }
+
+      const pollResults = await fetchMusicGptConversions(providerTaskId, providerConversionIds);
+      if (!pollResults.length) {
+        console.log(`[Job ${jobId}] MusicGPT fallback poll returned no results`, {
+          attempt: attempts,
+        });
+        if (attempts >= maxAttempts) {
+          await updateJob(jobId, {
+            status: 'failed',
+            error: 'MusicGPT webhook timeout',
+            finished_at: new Date().toISOString(),
+          });
+          await emitEvent(jobId, job.organization_id, 'failed', {
+            error: 'MusicGPT webhook timeout',
+          });
+          if (job.parent_job_id) {
+            await onChildFinishedUpdateParent(job.parent_job_id);
+          }
+          clearInterval(timer);
+        }
+        return;
+      }
+
+      const provider = getProvider(providerId);
+      const normalizedResults = pollResults.map((result) => provider.normalize(result));
+      const { processed, completedCount } = await processNormalizedProviderResults({
+        job,
+        providerId,
+        normalizedResults,
+        playlistContext,
+        fallbackPrompt,
+        providerTaskId,
+      });
+
+      if (processed > 0) {
+        console.log(
+          `[Job ${jobId}] Fallback polling processed ${processed} MusicGPT tracks (${completedCount} total)`
+        );
+      }
+
+      const latest = await getJobById(jobId);
+      if (!latest || latest.status !== 'running') {
+        clearInterval(timer);
+      }
+    } catch (error) {
+      console.error(`[Job ${jobId}] MusicGPT fallback polling error:`, error);
+    }
+
+    if (attempts >= maxAttempts) {
+      clearInterval(timer);
+    }
+  };
+
+  const timer = setInterval(handler, pollIntervalMs);
+  console.log(`[Job ${jobId}] MusicGPT fallback polling started`, {
+    providerTaskId,
+    pollIntervalMs,
+    maxAttempts,
+    providerConversionIds,
+  });
+  handler().catch((error) => {
+    console.error(`[Job ${jobId}] MusicGPT fallback polling immediate error:`, error);
+  });
+
+  if (typeof (timer as any)?.unref === 'function') {
+    (timer as any).unref();
   }
 }

@@ -130,9 +130,9 @@ export const PlaylistViewer: React.FC<PlaylistViewerProps> = ({
                 {playlist.name}
               </h1>
               {playlist.location && (
-                <p className="text-xl text-muted-foreground font-medium">
-                  {playlist.location}
-                </p>
+              <p className="text-xl text-muted-foreground font-medium">
+                {playlist.location}
+              </p>
               )}
             </div>
             <div className="flex gap-3">
