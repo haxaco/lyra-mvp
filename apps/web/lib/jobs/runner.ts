@@ -3,16 +3,16 @@
  * Handles Mureka → R2 → Supabase pipeline with proper error handling and concurrency control
  */
 
-import {
-  getJobById,
-  updateJob,
-  insertJobEvent,
-  getChildJobs,
-  countRunningJobsForOrg,
+import { 
+  getJobById, 
+  updateJob, 
+  insertJobEvent, 
+  getChildJobs, 
+  countRunningJobsForOrg, 
   getSupabaseAdmin,
 } from '../db';
 import type { JobSnapshot, JobEventType, JobStatus } from '../types';
-import type { ProviderNormalizedResult } from '@lyra/core';
+import type { ProviderNormalizedResult, ProviderPollResult } from '@lyra/core';
 import { learnFromComposedPlaylist } from '../ai/brandLearning';
 import { transformBlueprintToMurekaParams } from '../ai/blueprintToMureka';
 import { ComposeConfig } from '@lyra/sdk';
@@ -158,7 +158,7 @@ async function nextQueuedChild(parentId: string): Promise<JobSnapshot | null> {
 /**
  * Check if we should dispatch the next child (without failing the batch)
  */
-async function checkAndDispatchNextChild(parentId: string): Promise<void> {
+export async function checkAndDispatchNextChild(parentId: string): Promise<void> {
   try {
     const parentData = await getParentAndChildren(parentId);
     if (!parentData) return;
@@ -192,11 +192,15 @@ async function checkAndDispatchNextChild(parentId: string): Promise<void> {
     runTrackJob(nextChild.id)
       .then(async () => {
         console.log(`[Scheduler] Child ${nextChild.id} completed successfully`);
+        // Small delay to ensure database transaction is committed
+        await new Promise(resolve => setTimeout(resolve, 100));
         await onChildFinishedUpdateParent(parentId);
         await checkAndDispatchNextChild(parentId);
       })
       .catch(async (error) => {
         console.error(`[Scheduler] Child ${nextChild.id} failed:`, error);
+        // Small delay to ensure database transaction is committed
+        await new Promise(resolve => setTimeout(resolve, 100));
         await onChildFinishedUpdateParent(parentId);
         await checkAndDispatchNextChild(parentId);
       });
@@ -249,6 +253,8 @@ export async function dispatchChildrenUpToLimit(parentId: string): Promise<void>
       runTrackJob(nextChild.id)
         .then(async () => {
           console.log(`[Scheduler] Child ${nextChild.id} completed successfully`);
+          // Small delay to ensure database transaction is committed
+          await new Promise(resolve => setTimeout(resolve, 100));
           // Update parent progress
           await onChildFinishedUpdateParent(parentId);
           // Check if we should dispatch the next child
@@ -256,6 +262,8 @@ export async function dispatchChildrenUpToLimit(parentId: string): Promise<void>
         })
         .catch(async (error) => {
           console.error(`[Scheduler] Child ${nextChild.id} failed:`, error);
+          // Small delay to ensure database transaction is committed
+          await new Promise(resolve => setTimeout(resolve, 100));
           // Update parent progress (this will handle the failure logic)
           await onChildFinishedUpdateParent(parentId);
           // Check if we should dispatch the next child
@@ -348,9 +356,48 @@ export async function runTrackJob(jobId: string): Promise<void> {
 
     let providerParams: Record<string, any> = {};
     let expectedVariants = job.item_count || 1;
-    let prompt = job.params?.prompt ?? job.prompt ?? '';
+    let prompt: string;
     let lyrics = job.params?.lyrics ?? '[Instrumental only]';
-    let fallbackPrompt = prompt;
+    let fallbackPrompt: string;
+
+    // Select the appropriate prompt based on provider
+    // This ensures each provider gets the correct prompt format
+    if (isPlaylistTrack && playlistContext?.blueprint) {
+      // For playlist tracks, use provider-specific prompts from blueprint
+      if (providerId === 'musicgpt') {
+        // MusicGPT requires prompt_musicgpt (300 chars max)
+        const blueprintPromptMusicGpt = playlistContext.blueprint.prompt_musicgpt;
+        if (blueprintPromptMusicGpt && blueprintPromptMusicGpt.trim().length > 0) {
+          prompt = blueprintPromptMusicGpt;
+          console.log(`[Job ${jobId}] Using MusicGPT-specific prompt from blueprint (${prompt.length} chars)`);
+        } else {
+          // Fallback: truncate main prompt if MusicGPT-specific prompt is missing
+          const mainPrompt = playlistContext.blueprint.prompt || job.params?.prompt || job.prompt || '';
+          if (mainPrompt.length > 300) {
+            console.warn(`[Job ${jobId}] No prompt_musicgpt found, truncating main prompt from ${mainPrompt.length} to 300 chars`);
+            prompt = mainPrompt.substring(0, 300).trim();
+          } else {
+            console.warn(`[Job ${jobId}] No prompt_musicgpt found, using main prompt (${mainPrompt.length} chars)`);
+            prompt = mainPrompt;
+          }
+        }
+        // Ensure final prompt doesn't exceed 300 chars
+        if (prompt.length > 300) {
+          console.warn(`[Job ${jobId}] Prompt exceeds 300 chars (${prompt.length}), truncating`);
+          prompt = prompt.substring(0, 300).trim();
+        }
+        fallbackPrompt = playlistContext.blueprint.prompt || prompt;
+      } else {
+        // Mureka and other providers use the main prompt
+        prompt = playlistContext.blueprint.prompt || job.params?.prompt || job.prompt || '';
+        fallbackPrompt = prompt;
+      }
+      lyrics = playlistContext.blueprint.lyrics ?? lyrics;
+    } else {
+      // For non-playlist tracks, use prompt from job params
+      prompt = job.params?.prompt ?? job.prompt ?? '';
+      fallbackPrompt = prompt;
+    }
 
     switch (providerId) {
       case 'mureka': {
@@ -359,34 +406,30 @@ export async function runTrackJob(jobId: string): Promise<void> {
           providerParams = {
             ...transformed,
             n: 1,
-            reference_id: job.params?.reference_id,
-            vocal_id: job.params?.vocal_id,
-            melody_id: job.params?.melody_id,
-          };
-          prompt = playlistContext.blueprint.prompt ?? prompt;
+        reference_id: job.params?.reference_id,
+        vocal_id: job.params?.vocal_id,
+        melody_id: job.params?.melody_id,
+      };
+          // prompt already set above from blueprint
           lyrics = transformed.lyrics ?? lyrics;
-          fallbackPrompt = playlistContext.blueprint.prompt ?? prompt;
-        } else {
+    } else {
           providerParams = {
             lyrics,
-            model: job.params?.model || 'auto',
+        model: job.params?.model || 'auto',
             n: job.params?.n || job.item_count || 1,
             prompt,
-            reference_id: job.params?.reference_id,
-            vocal_id: job.params?.vocal_id,
-            melody_id: job.params?.melody_id,
-            stream: job.params?.stream || false,
-          };
+        reference_id: job.params?.reference_id,
+        vocal_id: job.params?.vocal_id,
+        melody_id: job.params?.melody_id,
+        stream: job.params?.stream || false,
+      };
         }
         expectedVariants = providerParams.n ?? expectedVariants;
         break;
       }
       case 'musicgpt': {
         expectedVariants = job.params?.n || expectedVariants || 2;
-        const blueprintPrompt = playlistContext?.blueprint?.prompt;
-        prompt = prompt || blueprintPrompt || 'Generate an original track';
-        fallbackPrompt = blueprintPrompt || prompt;
-        lyrics = job.params?.lyrics ?? playlistContext?.blueprint?.lyrics ?? null;
+        // prompt and lyrics already set above based on provider
         providerParams = {
           jobId,
           organizationId: job.organization_id,
@@ -417,7 +460,7 @@ export async function runTrackJob(jobId: string): Promise<void> {
       },
     };
 
-    await emitEvent(jobId, job.organization_id, 'progress', {
+    await emitEvent(jobId, job.organization_id, 'progress', { 
       message: `Preparing provider job (${providerId})`,
     });
 
@@ -439,6 +482,12 @@ export async function runTrackJob(jobId: string): Promise<void> {
       expected_variants: variants,
     });
 
+    // Refresh job object to get updated expected_variants before processing results
+    job = await getJobById(jobId);
+    if (!job) {
+      throw new Error(`Job ${jobId} not found after update`);
+    }
+
     await emitEvent(jobId, job.organization_id, 'progress', {
       message: `Provider task created`,
       provider: providerId,
@@ -448,7 +497,7 @@ export async function runTrackJob(jobId: string): Promise<void> {
     });
 
     if (prepareResult.delivery === 'webhook') {
-      await emitEvent(jobId, job.organization_id, 'progress', {
+    await emitEvent(jobId, job.organization_id, 'progress', { 
         message: 'Waiting for webhook callbacks',
         expected_variants: variants,
       });
@@ -477,7 +526,8 @@ export async function runTrackJob(jobId: string): Promise<void> {
       throw new Error(`Provider ${providerId} does not implement polling`);
     }
 
-    const pollResults = await provider.poll(providerTaskId);
+    // Type assertion needed because TypeScript may cache old interface definition
+    const pollResults = await (provider.poll as (taskId: string, conversionIds?: string[]) => Promise<ProviderPollResult[]>)(providerTaskId, prepareResult.providerConversionIds);
     if (!pollResults || pollResults.length === 0) {
       if (providerId === 'musicgpt') {
         console.log(
@@ -511,11 +561,8 @@ export async function runTrackJob(jobId: string): Promise<void> {
       `[Job ${jobId}] Track generation completed successfully - ${normalizedResults.length} tracks created`
     );
     
-    // Update parent job if this is a child job
-    if (job.parent_job_id) {
-      await onChildFinishedUpdateParent(job.parent_job_id);
-      // Note: dispatchChildrenUpToLimit is called from the scheduler, not here
-    }
+    // Note: Parent job update is handled by the scheduler after runTrackJob completes
+    // This ensures the job status is fully committed before checking parent progress
     
   } catch (error) {
     console.error(`[Job ${jobId}] Track generation failed:`, error);
@@ -560,13 +607,18 @@ export async function runPlaylistJob(jobId: string): Promise<void> {
     const blueprints = job.params.blueprints;
     const concurrencyLimit = job.concurrency_limit || 1;
     
-    // Update job status to running
+    // Determine provider (auto defaults to mureka for now)
+    const providerFromConfig = job.params?.config?.provider || 'auto';
+    const resolvedProvider: ProviderId = providerFromConfig === 'auto' ? 'mureka' : providerFromConfig as ProviderId;
+    
+    // Update job status to running with provider
     await updateJob(jobId, { 
       status: 'running', 
       progress_pct: 0,
       started_at: new Date().toISOString(),
       item_count: blueprints.length,
-      completed_count: 0
+      completed_count: 0,
+      provider: resolvedProvider,
     });
     await emitEvent(jobId, job.organization_id, 'started');
     
@@ -608,6 +660,7 @@ export async function runPlaylistJob(jobId: string): Promise<void> {
           parent_job_id: jobId,
           status: 'queued',
           kind: 'track.generate',
+          provider: resolvedProvider, // Pass provider to child jobs
           prompt: blueprint.prompt, // Set prompt from blueprint for the required column
           params: {
             organizationId: job.organization_id,
@@ -616,7 +669,8 @@ export async function runPlaylistJob(jobId: string): Promise<void> {
             playlistId: playlistId,
             trackIndex: i,
             blueprint: blueprint, // Keep prompt here too for consistency
-            config: job.params.config
+            config: job.params.config,
+            provider: resolvedProvider, // Also store in params for reference
           },
           progress_pct: 0,
           item_count: 1,
@@ -678,6 +732,12 @@ export async function onChildFinishedUpdateParent(parentId: string): Promise<voi
     }
     
     const children = await getChildJobs(parentId);
+    
+    // Log child job statuses for debugging
+    console.log(`[Parent ${parentId}] Checking child jobs:`, {
+      total: children.length,
+      statuses: children.map(c => ({ id: c.id, status: c.status, completed_count: c.completed_count, expected_variants: c.expected_variants }))
+    });
     
     // Count child jobs by status, not individual tracks
     const succeededChildren = children.filter(child => child.status === 'succeeded');
@@ -742,7 +802,8 @@ export async function onChildFinishedUpdateParent(parentId: string): Promise<voi
             tracks: succeededChildren.length,
             familyFriendly: true,
             model: 'auto',
-            allowExplicit: false // Default to safe content
+            allowExplicit: false, // Default to safe content
+            provider: (parentJob.provider === 'mureka' || parentJob.provider === 'musicgpt' ? parentJob.provider : 'auto') as 'mureka' | 'musicgpt' | 'auto' // Use provider from parent job
           };
           
           // Fire and forget - don't block the user
@@ -1030,7 +1091,10 @@ function startMusicGptFallbackPolling({
             error: 'MusicGPT webhook timeout',
           });
           if (job.parent_job_id) {
+            // Small delay to ensure database transaction is committed
+            await new Promise(resolve => setTimeout(resolve, 100));
             await onChildFinishedUpdateParent(job.parent_job_id);
+            await checkAndDispatchNextChild(job.parent_job_id);
           }
           clearInterval(timer);
         }
@@ -1054,9 +1118,25 @@ function startMusicGptFallbackPolling({
         );
       }
 
+      // Check if job completed after processing results
       const latest = await getJobById(jobId);
       if (!latest || latest.status !== 'running') {
         clearInterval(timer);
+        
+        // If job completed (succeeded or failed), trigger scheduler for next job
+        if (latest && (latest.status === 'succeeded' || latest.status === 'failed')) {
+          console.log(`[Job ${jobId}] MusicGPT fallback polling detected job completion (${latest.status}), triggering scheduler`);
+          
+          // If this is a child job, update parent and trigger next child dispatch
+          if (latest.parent_job_id) {
+            // Small delay to ensure database transaction is committed
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await onChildFinishedUpdateParent(latest.parent_job_id);
+            await checkAndDispatchNextChild(latest.parent_job_id);
+          }
+          // Note: For standalone jobs, the worker will pick them up automatically via the worker
+        }
+        return; // Exit handler since job is no longer running
       }
     } catch (error) {
       console.error(`[Job ${jobId}] MusicGPT fallback polling error:`, error);

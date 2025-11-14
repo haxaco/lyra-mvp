@@ -21,12 +21,14 @@ const ComposeConfigSchema = z.object({
   familyFriendly: z.boolean().default(true),
   model: ModelIdSchema.default("auto"),
   allowExplicit: z.boolean().default(false),
+  provider: z.enum(['mureka', 'musicgpt', 'auto']).default('auto'),
 });
 
 const TrackBlueprintSchema = z.object({
   index: z.number().int().min(0),
   title: z.string().min(1).max(100),
   prompt: z.string().min(1).max(1024),
+  prompt_musicgpt: z.string().min(1).max(300).optional(), // MusicGPT-specific prompt (300 chars max)
   lyrics: z.string().max(3000).optional().default("[Instrumental only]"),
   bpm: z.number().int().min(40).max(240),
   genre: z.string().min(1).max(50),

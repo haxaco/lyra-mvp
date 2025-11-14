@@ -2,7 +2,9 @@
   "name": "@lyra/web",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "copy-assets": "mkdir -p public && cp -f ../../packages/ui/src/assets/lyra-logo-*.png public/ || true",
+    "dev": "pnpm copy-assets && next dev",
+    "prebuild": "pnpm copy-assets",
     "build": "next build",
     "start": "next start",
     "lint": "eslint ."

@@ -37,6 +37,7 @@ interface TrackBlueprint {
   trackNumber: number;
   title: string;
   prompt: string;
+  prompt_musicgpt?: string;
   genre: string;
   energy: number;
   bpm: number;
@@ -186,6 +187,7 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({
   const [numTracks, setNumTracks] = useState(5);
   const [familyFriendly, setFamilyFriendly] = useState(true);
   const [selectedModel, setSelectedModel] = useState('lyra-pro');
+  const [selectedProvider, setSelectedProvider] = useState<'mureka' | 'musicgpt' | 'auto'>('auto');
   const [tracks, setTracks] = useState<TrackBlueprint[]>([]);
   const [, setAiFeed] = useState<AIFeedItem[]>([]);
   const [progress, setProgress] = useState(0);
@@ -273,6 +275,7 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({
         trackNumber: index + 1,
         title: blueprint.title || `Track ${index + 1}`,
         prompt: blueprint.prompt || '',
+        prompt_musicgpt: blueprint.prompt_musicgpt || '',
         genre: blueprint.genre || 'Electronic',
         energy: blueprint.energy || 5,
         bpm: blueprint.bpm || 120,
@@ -511,11 +514,17 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({
         content: '🚀 Starting playlist generation...'
       });
 
+      // Merge provider selection into config
+      const configWithProvider = {
+        ...liveConfig,
+        provider: selectedProvider,
+      };
+
       const res = await fetch(`${baseUrl}/api/compose/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          config: liveConfig,
+          config: configWithProvider,
           blueprints: liveBlueprints,
         }),
       });
@@ -982,6 +991,32 @@ export const PlaylistComposer: React.FC<PlaylistComposerProps> = ({
                               ))}
                             </SelectContent>
                           </Select>
+                        </div>
+
+                        {/* Provider Selector */}
+                        <div className="space-y-2">
+                          <Label className="text-[#FAF9F7]">Music Provider</Label>
+                          <Select value={selectedProvider} onValueChange={(value: 'mureka' | 'musicgpt' | 'auto') => setSelectedProvider(value)}>
+                            <SelectTrigger className="bg-[#1A1816] border-[#FF6F61]/20 text-[#FAF9F7]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#242220] border-[#FF6F61]/20">
+                              <SelectItem value="auto" className="text-[#FAF9F7]">
+                                Auto (Recommended)
+                              </SelectItem>
+                              <SelectItem value="mureka" className="text-[#FAF9F7]">
+                                Mureka (Fast)
+                              </SelectItem>
+                              <SelectItem value="musicgpt" className="text-[#FAF9F7]">
+                                MusicGPT (Beta)
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {selectedProvider === 'musicgpt' && (
+                            <p className="text-xs text-[#B8ADA8] mt-1">
+                              MusicGPT delivers tracks asynchronously. Generation may take 2-5 minutes.
+                            </p>
+                          )}
                         </div>
 
                         {/* Advanced Mode Toggle */}
@@ -1518,6 +1553,31 @@ const TrackBlueprintCard: React.FC<TrackBlueprintCardProps> = ({
   onRegenerate 
 }) => {
   const [lyricsOpen, setLyricsOpen] = useState(false);
+  // Default to showing Mureka prompt (the detailed one)
+  const [showMusicGptPrompt, setShowMusicGptPrompt] = useState(false);
+
+  // Reset toggle when track ID changes (new track, not just prompt updates)
+  useEffect(() => {
+    setShowMusicGptPrompt(false);
+  }, [track.id]);
+
+  // Determine which prompt to show and edit
+  const hasMusicGptPrompt = track.prompt_musicgpt && track.prompt_musicgpt.trim().length > 0;
+  // Only show MusicGPT prompt if it exists and user has toggled to it
+  const currentPrompt = (showMusicGptPrompt && hasMusicGptPrompt) 
+    ? track.prompt_musicgpt 
+    : track.prompt;
+  const currentPromptType = (showMusicGptPrompt && hasMusicGptPrompt) ? 'musicgpt' : 'mureka';
+  const currentPromptLength = currentPrompt?.length || 0;
+
+  // Handle prompt updates based on which prompt is being viewed
+  const handlePromptChange = (value: string) => {
+    if (showMusicGptPrompt && hasMusicGptPrompt) {
+      onUpdate(track.id, { prompt_musicgpt: value });
+    } else {
+      onUpdate(track.id, { prompt: value });
+    }
+  };
 
   return (
     <motion.div
@@ -1552,14 +1612,88 @@ const TrackBlueprintCard: React.FC<TrackBlueprintCardProps> = ({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Prompt */}
+          {/* Prompt with Toggle */}
           <div className="space-y-2">
-            <Label className="text-xs text-[#B8ADA8]">Track Prompt</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-[#B8ADA8] font-medium">Track Prompt</Label>
+              {hasMusicGptPrompt && (
+                <div className="flex items-center gap-1 bg-[#1A1816] border border-[#FF6F61]/20 rounded-md p-0.5">
+                  <button
+                    onClick={() => setShowMusicGptPrompt(false)}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-all ${
+                      !showMusicGptPrompt
+                        ? 'bg-[#FF6F61]/30 text-[#FF8A80] shadow-sm'
+                        : 'text-[#B8ADA8] hover:text-[#FAF9F7]'
+                    }`}
+                  >
+                    Mureka
+                  </button>
+                  <button
+                    onClick={() => setShowMusicGptPrompt(true)}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-all ${
+                      showMusicGptPrompt
+                        ? 'bg-[#FF6F61]/30 text-[#FF8A80] shadow-sm'
+                        : 'text-[#B8ADA8] hover:text-[#FAF9F7]'
+                    }`}
+                  >
+                    MusicGPT
+                  </button>
+                </div>
+              )}
+            </div>
             <Textarea
-              value={track.prompt}
-              onChange={(e) => onUpdate(track.id, { prompt: e.target.value })}
-              className="min-h-20 bg-[#1A1816] border-[#FF6F61]/20 text-[#FAF9F7] text-sm resize-none"
+              value={currentPrompt || ''}
+              onChange={(e) => handlePromptChange(e.target.value)}
+              className="min-h-24 bg-[#1A1816] border-[#FF6F61]/20 text-[#FAF9F7] text-sm resize-none font-mono"
+              placeholder={showMusicGptPrompt && hasMusicGptPrompt 
+                ? "MusicGPT prompt (300 chars max, concise and keyword-focused)" 
+                : "Mureka prompt (up to 1024 chars, detailed and descriptive)"}
             />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs border-[#FF6F61]/40 ${
+                    currentPromptType === 'musicgpt' 
+                      ? 'text-[#FF8A80] bg-[#FF8A80]/5' 
+                      : 'text-[#B8ADA8] bg-[#B8ADA8]/5'
+                  }`}
+                >
+                  {currentPromptType === 'musicgpt' ? 'MusicGPT' : 'Mureka'}
+                </Badge>
+                <p className="text-xs text-[#6B5B5B]">
+                  {showMusicGptPrompt && hasMusicGptPrompt 
+                    ? 'Optimized for 300-character limit'
+                    : 'Detailed prompt up to 1024 characters'}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {showMusicGptPrompt && hasMusicGptPrompt && (
+                  <span className={`text-xs font-medium ${
+                    currentPromptLength <= 300 
+                      ? 'text-[#6B5B5B]' 
+                      : currentPromptLength <= 320
+                      ? 'text-[#FF8A80]'
+                      : 'text-[#FF6F61]'
+                  }`}>
+                    {currentPromptLength}/300
+                  </span>
+                )}
+                {!showMusicGptPrompt && (
+                  <span className="text-xs text-[#6B5B5B]">
+                    {currentPromptLength}/1024
+                  </span>
+                )}
+              </div>
+            </div>
+            {hasMusicGptPrompt && (
+              <div className="flex items-start gap-2 p-2 rounded-lg bg-[#1A1816]/50 border border-[#FF6F61]/10">
+                <Info className="w-3 h-3 text-[#FF8A80] mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-[#B8ADA8] leading-relaxed">
+                  <span className="font-medium text-[#FAF9F7]">Toggle to compare:</span> Mureka prompts are detailed and descriptive (for better quality), while MusicGPT prompts are concise and keyword-focused (optimized for 300-character API limit). Both prompts convey the same musical intent.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Genre & BPM */}

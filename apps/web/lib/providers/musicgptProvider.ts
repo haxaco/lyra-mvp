@@ -109,6 +109,7 @@ export const musicgptProvider: MusicProvider = {
   normalize(result: ProviderPollResult) {
     const audioUrls = [];
 
+    // Only include MP3 URLs for MusicGPT - skip WAV files to save storage
     if (result.url) {
       audioUrls.push({
         format: result.format || 'mp3',
@@ -119,20 +120,7 @@ export const musicgptProvider: MusicProvider = {
       });
     }
 
-    const wavUrl = result.metadata?.wavUrl;
-    if (wavUrl) {
-      audioUrls.push({
-        format: 'wav',
-        url: wavUrl,
-        mimeType: 'audio/wav',
-        durationSec: result.durationSec ?? null,
-        sourceId: result.metadata?.sourceConversionId
-          ? `${result.metadata.sourceConversionId}-wav`
-          : result.id
-          ? `${result.id}-wav`
-          : undefined,
-      });
-    }
+    // WAV URLs are intentionally excluded for MusicGPT to reduce storage costs
 
     return {
       audioUrls,

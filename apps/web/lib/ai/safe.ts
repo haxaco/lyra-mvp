@@ -18,6 +18,7 @@ const ComposeConfigSchema = z.object({
   familyFriendly: z.boolean().default(true),
   model: ModelIdSchema.default("auto"),
   allowExplicit: z.boolean().default(false),
+  provider: z.enum(['mureka', 'musicgpt', 'auto']).default('auto'),
   // New enhanced fields from improved prompts
   description: z.string().optional(),
   productionStyle: z.string().optional(),
@@ -30,6 +31,7 @@ const TrackBlueprintSchema = z.object({
   index: z.number().int().min(0),
   title: z.string().min(1).max(100),
   prompt: z.string().min(1).max(1024),
+  prompt_musicgpt: z.string().min(1).max(300).optional(), // MusicGPT-specific prompt (300 chars max)
   lyrics: z.string().max(3000).optional().default("[Instrumental only]"),
   bpm: z.number().int().min(40).max(240),
   genre: z.string().min(1).max(50),
@@ -207,6 +209,7 @@ export function safeComposeConfig(
     familyFriendly: !!input.familyFriendly,
     model: input.model ?? "auto",
     allowExplicit: policy.allowExplicit, // normalized effective flag
+    provider: input.provider ?? "auto", // preserve provider field
     // New enhanced fields
     description: cleanText(input.description, 1000),
     productionStyle: cleanText(input.productionStyle, 500),
@@ -231,6 +234,7 @@ export function safeBlueprint(
     ...b,
     title: clean(b.title, 100),
     prompt: clean(b.prompt, 1024),
+    prompt_musicgpt: b.prompt_musicgpt ? clean(b.prompt_musicgpt, 300) : undefined, // Clean and limit to 300 chars
     lyrics: enforceLyricsPolicy(b.lyrics, {
       familyFriendly: opts.familyFriendly,
       allowExplicit: opts.allowExplicit,

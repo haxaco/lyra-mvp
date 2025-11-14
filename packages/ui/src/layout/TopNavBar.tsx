@@ -28,8 +28,11 @@ import {
 } from '../primitives/dropdown-menu';
 import { useTheme } from '../components/ThemeProvider';
 import { DashboardView } from '../components/Dashboard';
-import lyraLogoLight from '../assets/1524d315371893ccd33b602f2291ee7ae8e0063f.png';
-import lyraLogoDark from '../assets/29856cf506e23b11cdc68cf83fd6317137588f3c.png';
+// Logo paths - served from Next.js public folder
+// lyra-logo-light.png = light/white logo (for dark backgrounds/dark theme)
+// lyra-logo-dark.png = dark/black logo (for light backgrounds/light theme)
+const lyraLogoForLightTheme = '/lyra-logo-light.png';  // Dark logo for light theme (light background)
+const lyraLogoForDarkTheme = '/lyra-logo-dark.png';  // Light logo for dark theme (dark background)
 
 interface TopNavBarProps {
   currentView: DashboardView;
@@ -101,9 +104,9 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
             aria-label="Go to Dashboard Overview"
           >
             <img 
-              src={displayTheme === 'light' ? lyraLogoLight : lyraLogoDark} 
+              src={displayTheme === 'light' ? lyraLogoForLightTheme : lyraLogoForDarkTheme} 
               alt="Lyra"
-              className="h-10 w-auto object-contain"
+              className="h-10 w-auto object-contain transition-opacity duration-200"
               style={{ background: 'transparent' }}
             />
           </button>

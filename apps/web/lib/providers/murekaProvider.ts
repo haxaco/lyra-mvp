@@ -38,7 +38,7 @@ export const murekaProvider: MusicProvider = {
       raw: { request: murekaParams },
     };
   },
-  async poll(providerTaskId: string): Promise<ProviderPollResult[]> {
+  async poll(providerTaskId: string, _providerConversionIds?: string[]): Promise<ProviderPollResult[]> {
     const result = await pollMurekaJob(providerTaskId);
     if (result.status === 'failed') {
       throw new Error(result.error || 'Mureka job failed');

@@ -48,6 +48,7 @@ const ComposeConfigSchema = z.object({
   familyFriendly: z.boolean().default(true),
   model: ModelIdSchema.default("auto"),
   allowExplicit: z.boolean().default(false),
+  provider: z.enum(['mureka', 'musicgpt', 'auto']).default('auto'),
   // New enhanced fields from improved prompts
   description: z.string().optional(),
   productionStyle: z.string().optional(),
@@ -60,6 +61,7 @@ const TrackBlueprintSchema = z.object({
   index: z.number().int().min(0),
   title: z.string().min(1).max(100),
   prompt: z.string().min(1).max(1024),
+  prompt_musicgpt: z.string().min(1).max(300).optional(), // MusicGPT-specific prompt (300 chars max)
   lyrics: z.string().max(3000).optional().default("[Instrumental only]"),
   bpm: z.number().int().min(40).max(240),
   genre: z.string().min(1).max(50),
@@ -119,6 +121,7 @@ export async function* composeInStages(args: {
     familyFriendly: cfg.familyFriendly ?? true,
     model: cfg.model ?? "auto" as const,
     allowExplicit: cfg.allowExplicit ?? false,
+    provider: cfg.provider ?? "auto" as const,
   };
   
   const safeCfg = safeComposeConfig(normalizedCfg, brand.bannedTerms ?? [], !!brand.brandAllowsExplicit);
@@ -126,6 +129,8 @@ export async function* composeInStages(args: {
 
   // 3) Blueprints
   yield { type: "message", data: { text: "Composing per-track blueprints…" } };
+  
+  // Always use the standard prompt - it now always instructs to generate both prompts
   const bp = await getJson(oai, {
     system: prompts.blueprints,
     user: { config: safeCfg, brand },
@@ -142,13 +147,42 @@ export async function* composeInStages(args: {
     ? bp 
     : ('blueprints' in bp ? bp.blueprints : bp.tracks);
   
-  // Ensure all blueprints have required fields
-  const normalizedBlueprints = list.map((blueprint: any) => ({
-    ...blueprint,
-    durationSec: blueprint.durationSec ?? 180,
-    model: blueprint.model ?? "auto" as const,
-    lyrics: blueprint.lyrics ?? "[Instrumental only]",
-  }));
+  // Ensure all blueprints have required fields and validate both prompts
+  const normalizedBlueprints = list.map((blueprint: any, index: number) => {
+    const baseBlueprint = {
+      ...blueprint,
+      durationSec: blueprint.durationSec ?? 180,
+      model: blueprint.model ?? "auto" as const,
+      lyrics: blueprint.lyrics ?? "[Instrumental only]",
+    };
+    
+    // Validate that prompt_musicgpt exists and is within 300 chars
+    if (!baseBlueprint.prompt_musicgpt || typeof baseBlueprint.prompt_musicgpt !== 'string') {
+      console.warn(`[ComposeEngine] Track ${index} (${baseBlueprint.title}) missing prompt_musicgpt, generating fallback`);
+      // Fallback: generate a truncated version if AI didn't generate it
+      baseBlueprint.prompt_musicgpt = truncatePromptForMusicGpt(
+        baseBlueprint.prompt || 'Generate music',
+        baseBlueprint
+      );
+    } else {
+      // Validate length - ensure it's exactly 300 chars or less
+      const musicGptPrompt = baseBlueprint.prompt_musicgpt.trim();
+      if (musicGptPrompt.length > 300) {
+        console.warn(`[ComposeEngine] Track ${index} (${baseBlueprint.title}) prompt_musicgpt is ${musicGptPrompt.length} chars, truncating to 300`);
+        baseBlueprint.prompt_musicgpt = musicGptPrompt.substring(0, 300).trim();
+      } else if (musicGptPrompt.length < 50) {
+        console.warn(`[ComposeEngine] Track ${index} (${baseBlueprint.title}) prompt_musicgpt is too short (${musicGptPrompt.length} chars), using fallback`);
+        baseBlueprint.prompt_musicgpt = truncatePromptForMusicGpt(
+          baseBlueprint.prompt || 'Generate music',
+          baseBlueprint
+        );
+      } else {
+        baseBlueprint.prompt_musicgpt = musicGptPrompt;
+      }
+    }
+    
+    return baseBlueprint;
+  });
   
   const policy = resolveExplicitPolicy({
     configAllowExplicit: safeCfg.allowExplicit,
@@ -163,6 +197,65 @@ export async function* composeInStages(args: {
   yield { type: "blueprints", data: { blueprints: safeBps } };
 
   yield { type: "done", data: {} };
+}
+
+/**
+ * Truncate and optimize a prompt for MusicGPT (300 chars max)
+ * Fallback function used only if AI doesn't generate prompt_musicgpt
+ * Tries to preserve the most important information while staying under the limit
+ */
+function truncatePromptForMusicGpt(fullPrompt: string, blueprint: any): string {
+  const MAX_LENGTH = 300;
+  
+  // If prompt is already short enough, return as-is
+  if (fullPrompt.length <= MAX_LENGTH) {
+    return fullPrompt;
+  }
+  
+  // Build a condensed version with key metadata
+  const keyInfo: string[] = [];
+  
+  // Add genre if available
+  if (blueprint.genre) {
+    keyInfo.push(blueprint.genre);
+  }
+  
+  // Add BPM if available
+  if (blueprint.bpm) {
+    keyInfo.push(`${blueprint.bpm} BPM`);
+  }
+  
+  // Add energy if available
+  if (blueprint.energy) {
+    keyInfo.push(`energy ${blueprint.energy}/10`);
+  }
+  
+  // Start with key info
+  let truncated = keyInfo.length > 0 ? `${keyInfo.join(', ')}. ` : '';
+  
+  // Add the main prompt, truncated to fit
+  const remainingLength = MAX_LENGTH - truncated.length - 3; // Leave room for "..."
+  if (remainingLength > 0) {
+    // Try to truncate at word boundaries
+    const promptExcerpt = fullPrompt.substring(0, remainingLength);
+    const lastSpace = promptExcerpt.lastIndexOf(' ');
+    
+    if (lastSpace > remainingLength * 0.8) {
+      // If we found a space near the end, truncate there
+      truncated += promptExcerpt.substring(0, lastSpace).trim();
+    } else {
+      // Otherwise, truncate mid-word
+      truncated += promptExcerpt.trim();
+    }
+    
+    // Add ellipsis if we truncated
+    if (fullPrompt.length > remainingLength) {
+      truncated += '...';
+    }
+  }
+  
+  // Ensure we're exactly at or under the limit
+  return truncated.substring(0, MAX_LENGTH).trim();
 }
 
 /* helper to coerce structured JSON with zod */

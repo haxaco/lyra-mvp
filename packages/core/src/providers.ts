@@ -47,6 +47,6 @@ export interface MusicProvider {
   enabled(): Promise<boolean>;
   allowedForB2B(): Promise<boolean>;
   prepare(params: GenerateParams): Promise<ProviderPrepareResult>;
-  poll?(providerTaskId: string): Promise<ProviderPollResult[]>;
+  poll?(providerTaskId: string, providerConversionIds?: string[]): Promise<ProviderPollResult[]>;
   normalize(result: ProviderPollResult | unknown): ProviderNormalizedResult;
 }

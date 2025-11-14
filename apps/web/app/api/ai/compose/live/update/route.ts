@@ -35,6 +35,7 @@ const ComposeConfigSchema = z.object({
   familyFriendly: z.boolean().default(true),
   model: ModelIdSchema.default("auto"),
   allowExplicit: z.boolean().default(false),
+  provider: z.enum(['mureka', 'musicgpt', 'auto']).default('auto'),
   // New enhanced fields from improved prompts
   description: z.string().optional(),
   productionStyle: z.string().optional(),
@@ -109,6 +110,7 @@ export async function POST(req: Request) {
         familyFriendly: config.familyFriendly ?? true,
         model: config.model ?? "auto" as const,
         allowExplicit: config.allowExplicit ?? false,
+        provider: config.provider ?? "auto" as const,
       };
 
       const safeCfg = safeComposeConfig(normalizedCfg, brand.bannedTerms ?? [], !!brand.brandAllowsExplicit);
@@ -126,6 +128,7 @@ export async function POST(req: Request) {
         index: z.number().int().min(0),
         title: z.string().min(1).max(100),
         prompt: z.string().min(1).max(1024),
+        prompt_musicgpt: z.string().min(1).max(300).optional(), // MusicGPT-specific prompt (300 chars max)
         lyrics: z.string().max(3000).optional().default("[Instrumental only]"),
         bpm: z.number().int().min(40).max(240),
         genre: z.string().min(1).max(50),
@@ -165,13 +168,36 @@ export async function POST(req: Request) {
         throw new Error('Invalid blueprint response format');
       }
       
-      // Ensure all blueprints have required fields
-      const normalizedBlueprints = list.map((blueprint: any) => ({
-        ...blueprint,
-        durationSec: blueprint.durationSec ?? 180,
-        model: blueprint.model ?? "auto" as const,
-        lyrics: blueprint.lyrics ?? "[Instrumental only]",
-      }));
+      // Ensure all blueprints have required fields and validate both prompts
+      const normalizedBlueprints = list.map((blueprint: any, index: number) => {
+        const baseBlueprint = {
+          ...blueprint,
+          durationSec: blueprint.durationSec ?? 180,
+          model: blueprint.model ?? "auto" as const,
+          lyrics: blueprint.lyrics ?? "[Instrumental only]",
+        };
+        
+        // Validate that prompt_musicgpt exists and is within 300 chars
+        if (!baseBlueprint.prompt_musicgpt || typeof baseBlueprint.prompt_musicgpt !== 'string') {
+          console.warn(`[LiveUpdate] Track ${index} (${baseBlueprint.title}) missing prompt_musicgpt`);
+          // If missing, truncate the main prompt as fallback
+          const mainPrompt = baseBlueprint.prompt || 'Generate music';
+          baseBlueprint.prompt_musicgpt = mainPrompt.length > 300 
+            ? mainPrompt.substring(0, 297).trim() + '...'
+            : mainPrompt;
+        } else {
+          // Validate length - ensure it's exactly 300 chars or less
+          const musicGptPrompt = baseBlueprint.prompt_musicgpt.trim();
+          if (musicGptPrompt.length > 300) {
+            console.warn(`[LiveUpdate] Track ${index} (${baseBlueprint.title}) prompt_musicgpt is ${musicGptPrompt.length} chars, truncating to 300`);
+            baseBlueprint.prompt_musicgpt = musicGptPrompt.substring(0, 300).trim();
+          } else {
+            baseBlueprint.prompt_musicgpt = musicGptPrompt;
+          }
+        }
+        
+        return baseBlueprint;
+      });
 
       return NextResponse.json({ 
         ok: true, 

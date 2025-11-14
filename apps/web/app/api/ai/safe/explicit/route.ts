@@ -14,12 +14,14 @@ type ComposeConfig = {
   familyFriendly: boolean;
   model: "auto" | "mureka-6" | "mureka-7.5" | "mureka-o1";
   allowExplicit: boolean;
+  provider?: "mureka" | "musicgpt" | "auto";
 };
 
 type TrackBlueprint = {
   index: number;
   title: string;
   prompt: string;
+  prompt_musicgpt?: string;
   lyrics: string;
   bpm: number;
   genre: string;
@@ -44,7 +46,11 @@ export async function POST(req: Request) {
     const blueprints = (body.blueprints || []) as TrackBlueprint[];
     const brand = (body.brand || {}) as { allowsExplicit?: boolean; bannedTerms?: string[] };
 
-    const normalizedConfig = safeComposeConfig(config, brand.bannedTerms || [], brand.allowsExplicit);
+    const normalizedConfig = safeComposeConfig(
+      { ...config, provider: config.provider ?? "auto" },
+      brand.bannedTerms || [],
+      brand.allowsExplicit
+    );
     const policy = resolveExplicitPolicy({
       configAllowExplicit: normalizedConfig.allowExplicit,
       brandAllowsExplicit: brand.allowsExplicit,

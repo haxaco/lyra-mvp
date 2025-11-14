@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import lyraLogoLight from '../assets/1524d315371893ccd33b602f2291ee7ae8e0063f.png';
-import lyraLogoDark from '../assets/29856cf506e23b11cdc68cf83fd6317137588f3c.png';
+// Logo paths - served from Next.js public folder
+// lyra-logo-light.png = light/white logo (for dark backgrounds/dark theme)
+// lyra-logo-dark.png = dark/black logo (for light backgrounds/light theme)
+const lyraLogoForLightTheme = '/lyra-logo-light.png';  // Dark logo for light theme (light background)
+const lyraLogoForDarkTheme = '/lyra-logo-dark.png';  // Light logo for dark theme (dark background)
 import { Button } from '../primitives/button';
 import { useTheme } from './ThemeProvider';
 import { Input } from '../primitives/input';
@@ -72,9 +75,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center">
             <img 
-              src={theme === 'light' ? lyraLogoLight : lyraLogoDark} 
+              src={theme === 'light' ? lyraLogoForLightTheme : lyraLogoForDarkTheme} 
               alt="Lyra - real music. created by you."
-              className="h-16 w-auto"
+              className="h-16 w-auto transition-opacity duration-200"
             />
           </div>
           <p className="text-muted-foreground">

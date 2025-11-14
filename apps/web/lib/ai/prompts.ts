@@ -53,7 +53,7 @@ Example output structure:
 {"genres": ["house", "funk"], "bpmRange": [115, 125], "energy": 8, "moods": ["groovy", "uplifting", "conversation-friendly"], "durationSec": 360, "tracks": 6, "familyFriendly": true, "model": "auto", "allowExplicit": false, "playlistTitle": "Funk House Party Vibes", "description": "A sophisticated funk house playlist that encourages dancing without overpowering conversation...", "productionStyle": "filtered disco samples with modern synth layers", "dynamicFlow": "alternating peaks and dips to maintain energy", "vocalApproach": "mix of groovy vocals and pure instrumental funk", "targetContext": "house parties and social gatherings"}`),
 
   blueprints: fromEnv("PROMPTS_BLUEPRINTS", `
-You are a Mureka prompt engineer. Given a detailed playlist configuration, generate per-track blueprints optimized for music generation. 
+You are a music prompt engineer. Given a detailed playlist configuration, generate per-track blueprints optimized for music generation. 
 
 IMPORTANT: You MUST generate MULTIPLE tracks (typically 3-8 tracks) as a JSON array. Do not return a single track object.
 
@@ -63,6 +63,7 @@ Each track object MUST include these exact fields:
 - index: number (0-based, starting at 0)
 - title: string (1-100 chars, descriptive track name)
 - prompt: string (up to 1024 chars, highly detailed Mureka generation prompt - THIS IS CRITICAL)
+- prompt_musicgpt: string (EXACTLY 300 characters or less, optimized for MusicGPT API - THIS IS REQUIRED)
 - lyrics: string (REQUIRED - either "[Instrumental only]" for instrumental tracks OR actual song lyrics with verses, chorus, etc.)
 - bpm: number (40-240, specific BPM for this track)
 - genre: string (1-50 chars, primary genre for this track)
@@ -80,22 +81,41 @@ CRITICAL LYRICS GENERATION RULES:
 - Do NOT write descriptions of what lyrics should be - write the actual lyrics
 
 CRITICAL PROMPT ENGINEERING GUIDELINES:
-- The "prompt" field is the most important - make it rich, specific, and detailed (aim for 600-900 chars)
+
+For the "prompt" field (Mureka - up to 1024 chars):
+- Make it rich, specific, and detailed (aim for 600-900 chars)
 - Include: tempo/BPM, instrumentation specifics, vocal style/characteristics, mood descriptors, production aesthetic, any reference artists or influences, unique sonic qualities
 - For instrumental tracks: emphasize texture, layering, progression, and emotional arc
 - For vocal tracks: specify vocal delivery style, whether it has a hook or chorus, lyrical themes
-- Create dynamic variety: alternate between instrumental and vocal, vary energy levels within the playlist
-- Consider the flow: opening track sets tone, middle tracks maintain/build energy, closing track wraps up satisfyingly
 - Reference specific production techniques when relevant (sidechain compression, filters, reverb types, etc.)
 - Make each prompt actionable and evocative, not generic
 
+For the "prompt_musicgpt" field (MusicGPT - EXACTLY 300 chars or less):
+- This is a REQUIRED field - you MUST generate it for every track
+- Create a condensed, focused version optimized for MusicGPT's 300-character limit
+- Include: genre, BPM, energy level, key mood descriptors, and essential instrumentation
+- Remove verbose descriptions and focus on actionable musical elements
+- Keep it concise and punchy while preserving the core musical intent
+- Prioritize: genre, tempo, essential instruments, mood, and production style keywords
+- Example format: "Upbeat house, 120 BPM, funky bassline, filtered disco samples, warm synths, four-on-the-floor, groovy, uplifting"
+- Count characters carefully - MUST be 300 or less, ideally 250-300 chars
+
+IMPORTANT PROMPT GENERATION RULES:
+- Both "prompt" and "prompt_musicgpt" should convey the same musical intent but at different levels of detail
+- "prompt" can be verbose and descriptive (for Mureka)
+- "prompt_musicgpt" must be concise and keyword-focused (for MusicGPT)
+- Create dynamic variety: alternate between instrumental and vocal, vary energy levels within the playlist
+- Consider the flow: opening track sets tone, middle tracks maintain/build energy, closing track wraps up satisfyingly
+
 Return as a direct JSON array (no wrapper). Generate the number of tracks specified in the config (typically 3-8 tracks):
-[{"index": 0, "title": "Opening Track", "prompt": "Upbeat house with funky bassline, filtered disco samples, warm analog synths, four-on-the-floor beat...", "lyrics": "[Instrumental only]", "bpm": 120, "genre": "house", "energy": 7, "model": "mureka-7.5", "durationSec": 180}, {"index": 1, "title": "Second Track", "prompt": "...", "lyrics": "Verse 1:\\nWalking through the city lights\\nEverything feels so right\\n\\nChorus:\\nThis is our time to shine\\nLet the music fill our minds", "bpm": 125, "genre": "house", "energy": 8, "model": "mureka-7.5", "durationSec": 180}, ...]
+[{"index": 0, "title": "Opening Track", "prompt": "Upbeat house with funky bassline, filtered disco samples, warm analog synths, four-on-the-floor beat, groovy and uplifting atmosphere...", "prompt_musicgpt": "Upbeat house, 120 BPM, funky bassline, filtered disco samples, warm synths, four-on-the-floor, groovy, uplifting", "lyrics": "[Instrumental only]", "bpm": 120, "genre": "house", "energy": 7, "model": "mureka-7.5", "durationSec": 180}, {"index": 1, "title": "Second Track", "prompt": "...", "prompt_musicgpt": "...", "lyrics": "Verse 1:\\nWalking through the city lights\\nEverything feels so right\\n\\nChorus:\\nThis is our time to shine\\nLet the music fill our minds", "bpm": 125, "genre": "house", "energy": 8, "model": "mureka-7.5", "durationSec": 180}, ...]
 
 IMPORTANT: 
-- Each track prompt should be unique and detailed (600+ characters)
+- Each track must have BOTH "prompt" (detailed, 600+ chars) AND "prompt_musicgpt" (concise, 300 chars or less)
+- The "prompt_musicgpt" field is REQUIRED - do not omit it
 - Vary instrumentation and production style across tracks
 - Include dynamic elements (crescendos, builds, drops) in prompts where appropriate
 - Consider the overall playlist flow and how each track transitions in energy/vibe
 - Make prompts specific enough that they produce high-quality, distinct outputs
-- WRITE ACTUAL LYRICS, not descriptions of lyrics`)};
+- WRITE ACTUAL LYRICS, not descriptions of lyrics
+- Both prompts will be stored in the blueprint so both services (Mureka and MusicGPT) can be used for comparison`)};

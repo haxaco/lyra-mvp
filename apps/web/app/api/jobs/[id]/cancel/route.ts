@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getOrgClientAndId } from "@/lib/org";
-import { insertJobEvent } from "@/lib/db";
+import { insertJobEvent, getJobById } from "@/lib/db";
+import { onChildFinishedUpdateParent, checkAndDispatchNextChild } from "@/lib/jobs/runner";
 
 export async function POST(
   _req: NextRequest,
@@ -60,6 +61,19 @@ export async function POST(
         at: nowIso,
       },
     });
+
+    // If this is a child job, trigger scheduler to pick up next job
+    if (job.parent_job_id) {
+      try {
+        await onChildFinishedUpdateParent(job.parent_job_id);
+        await checkAndDispatchNextChild(job.parent_job_id);
+        console.log(`[Cancel ${jobId}] Triggered scheduler for parent ${job.parent_job_id}`);
+      } catch (error) {
+        console.error(`[Cancel ${jobId}] Failed to trigger scheduler:`, error);
+        // Don't fail the request if scheduler trigger fails
+      }
+    }
+    // Note: For standalone jobs, the worker will pick up the next job automatically
 
     return NextResponse.json({
       ok: true,
