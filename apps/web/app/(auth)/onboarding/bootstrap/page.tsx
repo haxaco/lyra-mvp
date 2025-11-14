@@ -50,11 +50,18 @@ export default function AuthOnboardingBootstrapPage() {
     });
   }, []);
 
-  const handleComplete = React.useCallback(async () => {
+  const handleComplete = React.useCallback(async (data?: { organizationData: any; brandData: any }) => {
     try {
-      // Mark organization onboarding as complete in database
+      // Mark organization onboarding as complete and save data to database
       const response = await fetch('/api/org/onboarding/complete', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          organizationData: data?.organizationData,
+          brandData: data?.brandData,
+        }),
       });
 
       if (!response.ok) {

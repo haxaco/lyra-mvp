@@ -13,7 +13,7 @@ import { Progress } from '../primitives/progress';
 import { ArrowRight, Building, Palette, Check } from 'lucide-react';
 
 interface OnboardingFlowProps {
-  onComplete: () => void;
+  onComplete: (data?: { organizationData: OrganizationData; brandData: BrandData }) => void;
 }
 
 interface OrganizationData {
@@ -62,10 +62,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
   };
 
   const handleComplete = () => {
-    // Save onboarding data
-    localStorage.setItem('lyra-organization', JSON.stringify(organizationData));
-    localStorage.setItem('lyra-brand', JSON.stringify(brandData));
-    onComplete();
+    // Pass onboarding data to parent component to save to database
+    onComplete({ organizationData, brandData });
   };
 
   return (
