@@ -10,6 +10,35 @@ export default function AuthOnboardingPage() {
     if (typeof window === 'undefined') return 'light';
     return (localStorage.getItem('lyra-theme') as 'light' | 'dark') || 'light';
   });
+  const [isChecking, setIsChecking] = React.useState(true);
+  const [shouldShowOnboarding, setShouldShowOnboarding] = React.useState(false);
+
+  React.useEffect(() => {
+    // Check if organization has already completed onboarding
+    async function checkOnboardingStatus() {
+      try {
+        const response = await fetch('/api/org/onboarding/status');
+        const data = await response.json();
+        
+        if (data.isComplete) {
+          // Organization already completed onboarding, skip to dashboard
+          router.push('/');
+        } else {
+          // Show onboarding flow
+          setShouldShowOnboarding(true);
+        }
+      } catch (error) {
+        console.error('[onboarding] Error checking onboarding status:', error);
+        // On error, show onboarding to be safe
+        setShouldShowOnboarding(true);
+      } finally {
+        setIsChecking(false);
+      }
+    }
+
+    checkOnboardingStatus();
+  }, [router]);
+
   const toggleTheme = React.useCallback(() => {
     setTheme((prev) => {
       const next = prev === 'light' ? 'dark' : 'light';
@@ -21,12 +50,39 @@ export default function AuthOnboardingPage() {
     });
   }, []);
 
-  const handleComplete = React.useCallback(() => {
-    // Mark onboarding as complete
-    localStorage.setItem('lyra-onboarding-complete', 'true');
-    // Navigate to dashboard root
-    router.push('/');
+  const handleComplete = React.useCallback(async () => {
+    try {
+      // Mark organization onboarding as complete in database
+      const response = await fetch('/api/org/onboarding/complete', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to mark onboarding as complete');
+      }
+
+      // Navigate to dashboard root
+      router.push('/');
+    } catch (error) {
+      console.error('[onboarding] Error completing onboarding:', error);
+      // Still navigate even if API call fails
+      router.push('/');
+    }
   }, [router]);
+
+  if (isChecking) {
+    return (
+      <ThemeProvider theme={theme} toggleTheme={toggleTheme}>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-muted-foreground">Loading...</div>
+        </div>
+      </ThemeProvider>
+    );
+  }
+
+  if (!shouldShowOnboarding) {
+    return null; // Will redirect
+  }
 
   return (
     <ThemeProvider theme={theme} toggleTheme={toggleTheme}>
