@@ -24,6 +24,7 @@ interface SidebarProps {
   collapsed: boolean;
   mobileVisible?: boolean;
   onClose?: () => void;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -32,7 +33,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNotificationsClick,
   collapsed,
   mobileVisible = false,
-  onClose
+  onClose,
+  onLogout
 }) => {
   const { theme, toggleTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
@@ -57,11 +59,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('lyra-onboarding-complete');
-    localStorage.removeItem('lyra-auth-token');
-    // For Next.js, navigate to home page
-    if (typeof window !== 'undefined') {
-      window.location.href = '/';
+    if (onLogout) {
+      onLogout();
+    } else {
+      // Fallback for when onLogout is not provided
+      localStorage.removeItem('lyra-onboarding-complete');
+      localStorage.removeItem('lyra-auth-token');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
     }
   };
 

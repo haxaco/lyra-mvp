@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { TopNavBar, Sidebar } from "@lyra/ui";
 import { NotificationDrawer, MusicPlayerResponsive } from "@lyra/ui/dist/components";
 import { ThemeProvider } from "@lyra/ui/dist/components";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 // Player context for sharing play state across dashboard
 type PlayerTrack = {
@@ -39,6 +40,7 @@ export function usePlayerContext() {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const supabase = createClientComponentClient();
 
   const [sidebarVisible, setSidebarVisible] = React.useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
@@ -136,6 +138,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return next;
     });
   }, []);
+
+  const handleLogout = React.useCallback(async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Fallback: clear storage and redirect anyway
+      localStorage.removeItem('lyra-onboarding-complete');
+      localStorage.removeItem('lyra-auth-token');
+      router.push('/login');
+    }
+  }, [supabase, router]);
 
   const [showNotifications, setShowNotifications] = React.useState(false);
   
@@ -252,6 +267,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onViewChange={onViewChange}
         onNotificationsClick={() => setShowNotifications(true)}
         onMenuToggle={toggleSidebar}
+        onLogout={handleLogout}
       />
 
       {/* Below top bar */}
@@ -263,6 +279,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           collapsed={sidebarCollapsed}
           mobileVisible={sidebarVisible}
           onClose={closeMobileSidebar}
+          onLogout={handleLogout}
         />
 
         {/* Main */}

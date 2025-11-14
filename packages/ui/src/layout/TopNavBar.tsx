@@ -42,6 +42,7 @@ interface TopNavBarProps {
   onGenerateClick?: () => void;
   onMenuToggle?: () => void;
   sidebarCollapsed?: boolean;
+  onLogout?: () => void;
 }
 
 export const TopNavBar: React.FC<TopNavBarProps> = ({
@@ -51,7 +52,8 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
   notificationCount = 3,
   onGenerateClick,
   onMenuToggle,
-  sidebarCollapsed = false
+  sidebarCollapsed = false,
+  onLogout
 }) => {
   const { theme, toggleTheme } = useTheme();
   const [searchFocused, setSearchFocused] = useState(false);
@@ -68,9 +70,14 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
   const displayTheme = mounted ? theme : 'light';
 
   const handleLogout = () => {
-    localStorage.removeItem('lyra-onboarding-complete');
-    localStorage.removeItem('lyra-auth-token');
-    window.location.reload();
+    if (onLogout) {
+      onLogout();
+    } else {
+      // Fallback for when onLogout is not provided
+      localStorage.removeItem('lyra-onboarding-complete');
+      localStorage.removeItem('lyra-auth-token');
+      window.location.reload();
+    }
   };
 
   return (
