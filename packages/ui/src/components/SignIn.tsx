@@ -3,8 +3,8 @@ import { Button } from '../primitives/button';
 import { Mail } from 'lucide-react';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 // Logo path - served from Next.js public folder
-// SignIn page uses light background, so use dark logo
-const lyraLogoDark = '/lyra-logo-dark.png';
+// SignIn page uses light background, so use light logo
+const lyraLogoLight = '/lyra-logo-light.png';
 
 interface SignInProps {
   onSignIn: () => void;
@@ -41,7 +41,7 @@ export const SignIn: React.FC<SignInProps> = ({ onSignIn, onGoogleSignIn, onAppl
         <div className="text-center lg:text-left space-y-6">
           <div className="flex justify-center lg:justify-start">
             <img 
-              src={lyraLogoDark} 
+              src={lyraLogoLight} 
               alt="Lyra"
               className="h-16 w-auto"
             />
