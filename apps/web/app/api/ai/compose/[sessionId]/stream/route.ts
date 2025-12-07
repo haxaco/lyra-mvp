@@ -11,10 +11,10 @@ function getSupabaseAdmin() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-export async function GET(req: Request, { params }: { params: { sessionId: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   try {
     const { userId, organizationId } = await getUserAndOrg();
-    const sessionId = params.sessionId;
+    const { sessionId } = await params;
     const url = new URL(req.url);
     const brief = url.searchParams.get("brief");
 

@@ -10,13 +10,13 @@ import { UnauthorizedError } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get authenticated user and organization
     const { organizationId } = await getUserAndOrg();
     
-    const jobId = params.id;
+    const { id: jobId } = await params;
     
     // Verify job exists and user has access
     const job = await getJobById(jobId);
