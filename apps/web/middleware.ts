@@ -52,17 +52,11 @@ export async function middleware(req: NextRequest) {
       if (isInvalidRefreshToken) {
         console.log(`[middleware] invalid refresh token detected, clearing session for ${pathname}`);
         
-        // Clear all Supabase auth cookies by setting them to expire
+        // Clear all Supabase auth cookies by deleting them
         // Supabase uses cookies with patterns like: sb-<project-ref>-auth-token
         req.cookies.getAll().forEach((cookie) => {
           if (cookie.name.includes('supabase') || cookie.name.includes('sb-') || cookie.name.includes('auth-token')) {
-            res.cookies.set(cookie.name, '', {
-              expires: new Date(0),
-              path: '/',
-              domain: cookie.domain,
-              sameSite: cookie.sameSite as any,
-              secure: cookie.secure,
-            });
+            res.cookies.delete(cookie.name);
           }
         });
         
