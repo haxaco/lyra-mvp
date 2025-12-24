@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "copy-assets": "mkdir -p public && cp -f ../../packages/ui/src/assets/lyra-logo-*.png public/ || true",
-    "dev": "pnpm copy-assets && next dev",
+    "dev": "pnpm copy-assets && next dev -p 3001",
     "prebuild": "pnpm copy-assets",
     "build": "next build",
     "start": "next start",
